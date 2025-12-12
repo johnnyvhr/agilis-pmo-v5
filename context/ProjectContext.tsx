@@ -78,19 +78,89 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             const { data: projectsData, error: projectsError } = await supabase
                 .from('projects')
                 .select('*');
-            if (projectsData) setProjects(projectsData as any); // Cast for now due to camelCase vs snake_case mismatches
+
+            let loadedProjects: Project[] = [];
+            if (projectsData) {
+                loadedProjects = projectsData.map((p: any) => ({
+                    id: p.id,
+                    name: p.name,
+                    description: p.description,
+                    manager: p.manager_name,
+                    client: '', // Not in DB schema
+                    startDate: p.start_date,
+                    endDate: p.end_date,
+                    status: p.status,
+                    departmentBudgets: {}, // Not in DB schema
+                    contractAdditives: [], // Not in DB schema
+                    associatedTeamIds: p.associated_team_ids || []
+                }));
+                setProjects(loadedProjects);
+            }
 
             // Fetch Tasks
             const { data: tasksData } = await supabase.from('tasks').select('*');
-            if (tasksData) setTasks(tasksData as any);
+            if (tasksData) {
+                const loadedTasks = tasksData.map((t: any) => {
+                    const relatedProject = loadedProjects.find(p => p.id === t.project_id);
+                    return {
+                        id: t.id,
+                        projectName: relatedProject ? relatedProject.name : 'Unknown',
+                        group: t.group_name,
+                        name: t.name,
+                        responsible: t.responsible,
+                        department: t.dept,
+                        plannedStart: t.planned_start,
+                        plannedEnd: t.planned_end,
+                        plannedDuration: t.planned_duration,
+                        percentComplete: t.percent_complete,
+                        actualStart: t.actual_start,
+                        actualEnd: t.actual_end,
+                        actualDuration: t.actual_duration,
+                        status: t.status
+                    };
+                });
+                setTasks(loadedTasks);
+            }
 
             // Fetch Risks
             const { data: risksData } = await supabase.from('risks').select('*');
-            if (risksData) setRisks(risksData as any);
+            if (risksData) {
+                const loadedRisks = risksData.map((r: any) => {
+                    const relatedProject = loadedProjects.find(p => p.id === r.project_id);
+                    return {
+                        id: r.id,
+                        projectName: relatedProject ? relatedProject.name : 'Unknown',
+                        description: r.description,
+                        category: '', // Not in DB
+                        probability: r.probability,
+                        impact: r.impact,
+                        responsible: r.owner,
+                        status: r.status,
+                        lastUpdate: r.created_at, // approximation
+                        mitigationPlan: r.mitigation_plan
+                    };
+                });
+                setRisks(loadedRisks);
+            }
 
             // Fetch Quality Checks
             const { data: qcData } = await supabase.from('quality_checks').select('*');
-            if (qcData) setQualityChecks(qcData as any);
+            if (qcData) {
+                const loadedQCs = qcData.map((abc: any) => {
+                    const relatedProject = loadedProjects.find(p => p.id === abc.project_id);
+                    return {
+                        id: abc.id,
+                        projectName: relatedProject ? relatedProject.name : 'Unknown',
+                        item: abc.item,
+                        category: '', // Not in DB
+                        responsible: abc.responsible,
+                        status: abc.status,
+                        lastUpdate: abc.created_at, // approximation
+                        details: abc.criteria || abc.comments || ''
+                    };
+                });
+                setQualityChecks(loadedQCs);
+            }
 
             // Fetch Teams
             const { data: teamsData } = await supabase.from('teams').select('*');
@@ -98,7 +168,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
 
             // Fetch Profiles/Users
             const { data: usersData } = await supabase.from('profiles').select('*');
-            if (usersData) setUsers(usersData.map((u: any) => ({ ...u, status: 'Ativo' })) as any); // Adapt or map fields
+            if (usersData) setUsers(usersData.map((u: any) => ({ ...u, status: 'Ativo' })) as any);
         };
 
         fetchData();
@@ -150,10 +220,11 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             status: project.status, // Ensure enum matches text or map it
             start_date: project.startDate,
             end_date: project.endDate,
-            manager: project.manager,
+            manager_name: project.manager,
             budget: 0, // Default or from project
             priority: 'Média',
-            progress: 0
+            progress: 0,
+            associated_team_ids: project.associatedTeamIds
         };
 
         const { data, error } = await supabase
@@ -180,8 +251,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             status: updatedProject.status,
             start_date: updatedProject.startDate,
             end_date: updatedProject.endDate,
-            manager: updatedProject.manager,
-            // ... map other fields if they changed
+            manager_name: updatedProject.manager,
+            associated_team_ids: updatedProject.associatedTeamIds
         };
 
         const { error } = await supabase
@@ -232,6 +303,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             planned_start: task.plannedStart,
             planned_end: task.plannedEnd,
             group_name: task.group,
+            dept: task.department,
+            planned_duration: task.plannedDuration,
+            percent_complete: task.percentComplete,
             // ... other fields
         };
 
@@ -255,6 +329,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             actual_start: task.actualStart,
             actual_end: task.actualEnd,
             group_name: task.group,
+            dept: task.department,
+            planned_duration: task.plannedDuration,
+            actual_duration: task.actualDuration
         };
 
         const { error } = await supabase.from('tasks').update(dbTask).eq('id', task.id);
@@ -289,7 +366,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             mitigation_plan: risk.mitigationPlan,
             status: risk.status,
             owner: risk.responsible,
-            // risk.category needed? schema check
+            // risk.category // not in db
         };
         const { data, error } = await supabase.from('risks').insert([dbRisk]).select();
         if (data) setRisks([...risks, { ...risk, id: data[0].id }]);
@@ -322,10 +399,10 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         const dbQC = {
             project_id: project.id,
             item: qc.item,
-            criteria: qc.details, // Mapping 'details' to criteria or details? Schema has criteria AND comments. TS has details.
+            criteria: qc.details,
             status: qc.status,
             responsible: qc.responsible,
-            // category?
+            // category not in db
         };
         const { data, error } = await supabase.from('quality_checks').insert([dbQC]).select();
         if (data) setQualityChecks([...qualityChecks, { ...qc, id: data[0].id }]);
