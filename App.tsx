@@ -25,139 +25,10 @@ import Settings from './components/Settings';
 import Notifications from './components/Notifications';
 import { useProjectContext } from './context/ProjectContext';
 import { Project, Task, Risk, QualityCheck, User, Team } from './types';
+import LoginPage from './components/LoginPage';
+import InvitePage from './components/InvitePage';
 
-// Login Component Definition
-interface LoginProps {
-  onLogin: () => void;
-}
-
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState(''); // For Sign Up
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setLoading(true);
-
-    try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              name: name,
-            },
-          },
-        });
-        if (error) throw error;
-        alert('Cadastro realizado com sucesso! Verifique seu email ou faça login.');
-        setIsSignUp(false);
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-      }
-    } catch (error: any) {
-      alert(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-slate-100 dark:bg-slate-900">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-slate-800 rounded-lg shadow-lg">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-blue-500 dark:text-blue-400">Agilis PMO</h1>
-          <p className="mt-2 text-slate-600 dark:text-slate-300">
-            {isSignUp ? 'Crie sua conta para começar' : 'Bem-vindo de volta! Faça login para continuar.'}
-          </p>
-        </div>
-        <form className="space-y-6" onSubmit={handleSubmit}>
-          {isSignUp && (
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                Nome
-              </label>
-              <div className="mt-1">
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-          )}
-
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-              Email
-            </label>
-            <div className="mt-1">
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu@email.com"
-                className="block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-              Senha
-            </label>
-            <div className="mt-1">
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="text-sm">
-              <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">
-                {isSignUp ? 'Já tem uma conta? Faça Login' : 'Não tem conta? Cadastre-se'}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex justify-center w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              {loading ? 'Processando...' : (isSignUp ? 'Cadastrar' : 'Entrar')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
+// Login component moved to ./components/LoginPage.tsx
 
 const App: React.FC = () => {
 
@@ -494,79 +365,172 @@ const App: React.FC = () => {
   };
 
   if (!currentUser) {
-    return <Login onLogin={() => { }} />;
+    // If not logged in, we check routes in the Router below, BUT we can't wrap Router here if we haven't yet.
+    // The previous code returned <Login> early.
+    // We should allow the router to decide.
   }
+
+  // Refactored Render Content to just be the Routes
+  // Moved Layout logic inside the protected route
+  const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
+    <div className="flex h-screen bg-gray-100 font-sans">
+      <Sidebar
+        companyName={companyName}
+        projects={projects}
+        selectedProject={selectedProject}
+        setSelectedProject={setSelectedProject}
+        onNewProjectClick={handleOpenNewProjectModal}
+        onSettingsClick={() => { setIsNotificationsOpen(false); setIsSettingsOpen(true); }}
+        onNotificationsClick={() => { setIsSettingsOpen(false); setIsNotificationsOpen(true); }}
+        onLogoutClick={() => supabase.auth.signOut()}
+      />
+      <main className="flex-1 overflow-y-auto">
+        {children}
+      </main>
+      {isProjectModalOpen && (
+        <ProjectFormModal
+          onClose={() => setIsProjectModalOpen(false)}
+          onSave={handleSaveProject}
+          onDelete={handleDeleteProject}
+          projectToEdit={projectToEdit}
+          departments={departments}
+          teams={teams}
+        />
+      )}
+      {isTaskModalOpen && selectedProject && (
+        <TaskFormModal
+          onClose={() => setIsTaskModalOpen(false)}
+          onSave={handleSaveTask}
+          onDelete={handleDeleteTask}
+          taskToEdit={taskToEdit}
+          projectName={selectedProject.name}
+          departments={departments}
+        />
+      )}
+      {isRiskModalOpen && selectedProject && (
+        <RiskFormModal
+          onClose={() => setIsRiskModalOpen(false)}
+          onSave={handleSaveRisk}
+          riskToEdit={riskToEdit}
+          projectName={selectedProject.name}
+        />
+      )}
+      {isQualityModalOpen && selectedProject && (
+        <QualityFormModal
+          onClose={() => setIsQualityModalOpen(false)}
+          onSave={handleSaveQualityCheck}
+          qualityCheckToEdit={qualityCheckToEdit}
+          projectName={selectedProject.name}
+        />
+      )}
+      {isTeamModalOpen && (
+        <TeamFormModal
+          onClose={() => setIsTeamModalOpen(false)}
+          onSave={handleSaveTeam}
+          onDelete={handleDeleteTeam}
+          teamToEdit={teamToEdit}
+          users={users}
+        />
+      )}
+      {isUserModalOpen && (
+        <UserFormModal
+          onClose={() => setIsUserModalOpen(false)}
+          onSave={handleSaveUser}
+          onDelete={handleDeleteUser}
+          userToEdit={userToEdit}
+        />
+      )}
+    </div>
+  );
+
+  // Settings/Notifications Overrides
+  const getMainContent = () => {
+    if (isSettingsOpen) {
+      return <Settings
+        onClose={() => setIsSettingsOpen(false)}
+        currentUser={currentUser}
+        users={users}
+        onAddUser={handleOpenNewUserModal}
+        onEditUser={handleOpenEditUserModal}
+        onDeleteUser={handleDeleteUser}
+        companyName={companyName}
+        setCompanyName={setCompanyName}
+        theme={theme}
+        setTheme={setTheme}
+      />;
+    }
+
+    if (isNotificationsOpen) {
+      return <Notifications onClose={() => setIsNotificationsOpen(false)} />;
+    }
+    return null;
+  }
+
+  const projectTasks = tasks.filter(t => t.projectName === selectedProject?.name);
+  const projectRisks = risks.filter(r => r.projectName === selectedProject?.name);
+  const projectQualityChecks = qualityChecks.filter(qc => qc.projectName === selectedProject?.name);
+
+  const specialContent = getMainContent();
 
   return (
     <Router>
-      <div className="flex h-screen bg-gray-100 font-sans">
-        <Sidebar
-          companyName={companyName}
-          projects={projects}
-          selectedProject={selectedProject}
-          setSelectedProject={setSelectedProject}
-          onNewProjectClick={handleOpenNewProjectModal}
-          onSettingsClick={() => { setIsNotificationsOpen(false); setIsSettingsOpen(true); }}
-          onNotificationsClick={() => { setIsSettingsOpen(false); setIsNotificationsOpen(true); }}
-          onLogoutClick={() => supabase.auth.signOut()}
-        />
-        <main className="flex-1 overflow-y-auto">
-          {renderContent()}
-        </main>
-        {isProjectModalOpen && (
-          <ProjectFormModal
-            onClose={() => setIsProjectModalOpen(false)}
-            onSave={handleSaveProject}
-            onDelete={handleDeleteProject}
-            projectToEdit={projectToEdit}
-            departments={departments}
-            teams={teams}
-          />
-        )}
-        {isTaskModalOpen && selectedProject && (
-          <TaskFormModal
-            onClose={() => setIsTaskModalOpen(false)}
-            onSave={handleSaveTask}
-            onDelete={handleDeleteTask}
-            taskToEdit={taskToEdit}
-            projectName={selectedProject.name}
-            departments={departments}
-          />
-        )}
-        {isRiskModalOpen && selectedProject && (
-          <RiskFormModal
-            onClose={() => setIsRiskModalOpen(false)}
-            onSave={handleSaveRisk}
-            riskToEdit={riskToEdit}
-            projectName={selectedProject.name}
-          />
-        )}
-        {isQualityModalOpen && selectedProject && (
-          <QualityFormModal
-            onClose={() => setIsQualityModalOpen(false)}
-            onSave={handleSaveQualityCheck}
-            qualityCheckToEdit={qualityCheckToEdit}
-            projectName={selectedProject.name}
-          />
-        )}
-        {isTeamModalOpen && (
-          <TeamFormModal
-            onClose={() => setIsTeamModalOpen(false)}
-            onSave={handleSaveTeam}
-            onDelete={handleDeleteTeam}
-            teamToEdit={teamToEdit}
-            users={users}
-          />
-        )}
-        {isUserModalOpen && (
-          <UserFormModal
-            onClose={() => setIsUserModalOpen(false)}
-            onSave={handleSaveUser}
-            onDelete={handleDeleteUser}
-            userToEdit={userToEdit}
-          />
-        )}
-      </div>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={!currentUser ? <LoginPage onLogin={() => { }} /> : <Navigate to="/" />} />
+        <Route path="/invite/:id" element={<InvitePage />} />
+
+        {/* Protected Routes */}
+        <Route path="*" element={
+          currentUser ? (
+            <ProtectedLayout>
+              {specialContent ? specialContent : (
+                <Routes>
+                  <Route path="/" element={<Dashboard projects={projects} onEditProject={handleOpenEditProjectModal} />} />
+                  <Route path="/dashboard" element={<Dashboard projects={projects} onEditProject={handleOpenEditProjectModal} />} />
+                  <Route path="/medicoes" element={<GestaoMedicoes projects={projects} departments={departments} />} />
+                  <Route path="/departamentos" element={<Departamentos departments={departments} addDepartment={addDepartment} deleteDepartment={deleteDepartment} />} />
+                  <Route path="/equipes" element={<GestaoEquipes teams={teams} users={users} onAddTeam={handleOpenNewTeamModal} onEditTeam={handleOpenEditTeamModal} />} />
+                  <Route path="/membros" element={<GestaoMembros users={users} onAddUser={handleOpenNewUserModal} onEditUser={handleOpenEditUserModal} />} />
+
+                  <Route path="/projeto/:id/dashboard" element={<ProjectDashboard project={selectedProject} />} />
+                  <Route path="/projeto/:id/cronograma" element={<ProjectCronograma
+                    onAddTask={handleOpenNewTaskModal}
+                    onEditTask={handleOpenEditTaskModal}
+                  />}
+                  />
+                  <Route path="/projeto/:id/kanban" element={<KanbanBoard
+                    onEditTask={handleOpenEditTaskModal}
+                  />}
+                  />
+                  <Route path="/projeto/:id/financeiro" element={<ProjectFinanceiro project={selectedProject} />} />
+                  <Route path="/projeto/:id/qualidade" element={<ProjectQualidade
+                    project={selectedProject}
+                    qualityChecks={projectQualityChecks}
+                    onAddQualityCheck={handleOpenNewQualityCheckModal}
+                    onEditQualityCheck={handleOpenEditQualityCheckModal}
+                    setQualityChecks={setQualityChecks}
+                  />}
+                  />
+                  <Route path="/projeto/:id/riscos" element={<ProjectRiscos
+                    project={selectedProject}
+                    risks={projectRisks}
+                    onAddRisk={handleOpenNewRiskModal}
+                    onEditRisk={handleOpenEditRiskModal}
+                    setRisks={setRisks}
+                  />}
+                  />
+                  <Route path="/projeto/:id/equipes" element={<ProjectEquipes project={selectedProject} allTeams={teams} allUsers={users} />} />
+                  <Route path="/projeto/:id/vista" element={<GestaoVista />}
+                  />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              )}
+            </ProtectedLayout>
+          ) : (
+            <Navigate to="/login" />
+          )
+        } />
+      </Routes>
     </Router>
   );
 };
