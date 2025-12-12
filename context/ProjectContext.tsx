@@ -218,8 +218,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             name: project.name,
             description: project.description,
             status: project.status, // Ensure enum matches text or map it
-            start_date: project.startDate,
-            end_date: project.endDate,
+            start_date: project.startDate || null,
+            end_date: project.endDate || null,
             manager_name: project.manager,
             budget: 0, // Default or from project
             priority: 'Média',
@@ -249,8 +249,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             name: updatedProject.name,
             description: updatedProject.description,
             status: updatedProject.status,
-            start_date: updatedProject.startDate,
-            end_date: updatedProject.endDate,
+            start_date: updatedProject.startDate || null,
+            end_date: updatedProject.endDate || null,
             manager_name: updatedProject.manager,
             associated_team_ids: updatedProject.associatedTeamIds
         };
