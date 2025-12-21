@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { User } from '../types';
+import { User, ROLE_LABELS, UserRole } from '../types';
 import { PlusIcon, PencilIcon } from './icons';
 
 interface GestaoMembrosProps {
@@ -36,7 +36,7 @@ const GestaoMembros: React.FC<GestaoMembrosProps> = ({ users, onAddUser, onEditU
               {users.length > 0 ? users.map(user => (
                 <tr key={user.id}>
                   <td className="p-3 font-medium text-slate-800">{user.name}</td>
-                  <td className="p-3 text-slate-600">{user.role}</td>
+                  <td className="p-3 text-slate-600">{ROLE_LABELS[user.role as UserRole] || user.role}</td>
                   <td className="p-3">
                     <button onClick={() => onEditUser(user)} className="text-slate-500 hover:text-blue-600">
                       <PencilIcon className="w-4 h-4" />
@@ -55,5 +55,6 @@ const GestaoMembros: React.FC<GestaoMembrosProps> = ({ users, onAddUser, onEditU
     </div>
   );
 };
+
 
 export default GestaoMembros;

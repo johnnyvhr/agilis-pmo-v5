@@ -73,8 +73,7 @@ const App: React.FC = () => {
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  // No separate state for notifications needed, using Routing.
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
 
   useEffect(() => {
@@ -296,181 +295,9 @@ const App: React.FC = () => {
   };
 
 
-  const renderContent = () => {
-    if (isSettingsOpen) {
-      return <Settings
-        onClose={() => setIsSettingsOpen(false)}
-        currentUser={currentUser}
-        users={users}
-        onAddUser={handleOpenNewUserModal}
-        onEditUser={handleOpenEditUserModal}
-        onDeleteUser={handleDeleteUser}
-        companyName={companyName}
-        setCompanyName={setCompanyName}
-        theme={theme}
-        setTheme={setTheme}
-      />;
-    }
-
-    if (isNotificationsOpen) {
-      return <Notifications onClose={() => setIsNotificationsOpen(false)} />;
-    }
-
-    const projectTasks = tasks.filter(t => t.projectName === selectedProject?.name);
-    const projectRisks = risks.filter(r => r.projectName === selectedProject?.name);
-    const projectQualityChecks = qualityChecks.filter(qc => qc.projectName === selectedProject?.name);
-
-    return (
-      <Routes>
-        <Route path="/" element={<Dashboard projects={projects} onEditProject={handleOpenEditProjectModal} />} />
-        <Route path="/dashboard" element={<Dashboard projects={projects} onEditProject={handleOpenEditProjectModal} />} />
-        <Route path="/medicoes" element={<GestaoMedicoes projects={projects} departments={departments} />} />
-        <Route path="/departamentos" element={<Departamentos departments={departments} addDepartment={addDepartment} deleteDepartment={deleteDepartment} />} />
-        <Route path="/equipes" element={<GestaoEquipes teams={teams} users={users} onAddTeam={handleOpenNewTeamModal} onEditTeam={handleOpenEditTeamModal} />} />
-        <Route path="/membros" element={<GestaoMembros users={users} onAddUser={handleOpenNewUserModal} onEditUser={handleOpenEditUserModal} />} />
-
-        <Route path="/projeto/:id/dashboard" element={<ProjectDashboard project={selectedProject} />} />
-        <Route path="/projeto/:id/cronograma" element={<ProjectCronograma
-          onAddTask={handleOpenNewTaskModal}
-          onEditTask={handleOpenEditTaskModal}
-        />}
-        />
-        <Route path="/projeto/:id/kanban" element={<KanbanBoard
-          onEditTask={handleOpenEditTaskModal}
-        />}
-        />
-        <Route path="/projeto/:id/financeiro" element={<ProjectFinanceiro project={selectedProject} />} />
-        <Route path="/projeto/:id/qualidade" element={<ProjectQualidade
-          project={selectedProject}
-          qualityChecks={projectQualityChecks}
-          onAddQualityCheck={handleOpenNewQualityCheckModal}
-          onEditQualityCheck={handleOpenEditQualityCheckModal}
-          setQualityChecks={setQualityChecks}
-        />}
-        />
-        <Route path="/projeto/:id/riscos" element={<ProjectRiscos
-          project={selectedProject}
-          risks={projectRisks}
-          onAddRisk={handleOpenNewRiskModal}
-          onEditRisk={handleOpenEditRiskModal}
-          setRisks={setRisks}
-        />}
-        />
-        <Route path="/projeto/:id/equipes" element={<ProjectEquipes project={selectedProject} allTeams={teams} allUsers={users} />} />
-        <Route path="/projeto/:id/vista" element={<GestaoVista />}
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    );
-  };
-
-  if (!currentUser) {
-    // If not logged in, we check routes in the Router below, BUT we can't wrap Router here if we haven't yet.
-    // The previous code returned <Login> early.
-    // We should allow the router to decide.
-  }
-
-  // Refactored Render Content to just be the Routes
-  // Moved Layout logic inside the protected route
-  const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
-    <div className="flex h-screen bg-gray-100 font-sans">
-      <Sidebar
-        companyName={companyName}
-        projects={projects}
-        selectedProject={selectedProject}
-        setSelectedProject={setSelectedProject}
-        onNewProjectClick={handleOpenNewProjectModal}
-        onSettingsClick={() => { setIsNotificationsOpen(false); setIsSettingsOpen(true); }}
-        onNotificationsClick={() => { setIsSettingsOpen(false); setIsNotificationsOpen(true); }}
-        onLogoutClick={() => supabase.auth.signOut()}
-      />
-      <main className="flex-1 overflow-y-auto">
-        {children}
-      </main>
-      {isProjectModalOpen && (
-        <ProjectFormModal
-          onClose={() => setIsProjectModalOpen(false)}
-          onSave={handleSaveProject}
-          onDelete={handleDeleteProject}
-          projectToEdit={projectToEdit}
-          departments={departments}
-          teams={teams}
-        />
-      )}
-      {isTaskModalOpen && selectedProject && (
-        <TaskFormModal
-          onClose={() => setIsTaskModalOpen(false)}
-          onSave={handleSaveTask}
-          onDelete={handleDeleteTask}
-          taskToEdit={taskToEdit}
-          projectName={selectedProject.name}
-          departments={departments}
-        />
-      )}
-      {isRiskModalOpen && selectedProject && (
-        <RiskFormModal
-          onClose={() => setIsRiskModalOpen(false)}
-          onSave={handleSaveRisk}
-          riskToEdit={riskToEdit}
-          projectName={selectedProject.name}
-        />
-      )}
-      {isQualityModalOpen && selectedProject && (
-        <QualityFormModal
-          onClose={() => setIsQualityModalOpen(false)}
-          onSave={handleSaveQualityCheck}
-          qualityCheckToEdit={qualityCheckToEdit}
-          projectName={selectedProject.name}
-        />
-      )}
-      {isTeamModalOpen && (
-        <TeamFormModal
-          onClose={() => setIsTeamModalOpen(false)}
-          onSave={handleSaveTeam}
-          onDelete={handleDeleteTeam}
-          teamToEdit={teamToEdit}
-          users={users}
-        />
-      )}
-      {isUserModalOpen && (
-        <UserFormModal
-          onClose={() => setIsUserModalOpen(false)}
-          onSave={handleSaveUser}
-          onDelete={handleDeleteUser}
-          userToEdit={userToEdit}
-        />
-      )}
-    </div>
-  );
-
-  // Settings/Notifications Overrides
-  const getMainContent = () => {
-    if (isSettingsOpen) {
-      return <Settings
-        onClose={() => setIsSettingsOpen(false)}
-        currentUser={currentUser}
-        users={users}
-        onAddUser={handleOpenNewUserModal}
-        onEditUser={handleOpenEditUserModal}
-        onDeleteUser={handleDeleteUser}
-        companyName={companyName}
-        setCompanyName={setCompanyName}
-        theme={theme}
-        setTheme={setTheme}
-      />;
-    }
-
-    if (isNotificationsOpen) {
-      return <Notifications onClose={() => setIsNotificationsOpen(false)} />;
-    }
-    return null;
-  }
-
   const projectTasks = tasks.filter(t => t.projectName === selectedProject?.name);
   const projectRisks = risks.filter(r => r.projectName === selectedProject?.name);
   const projectQualityChecks = qualityChecks.filter(qc => qc.projectName === selectedProject?.name);
-
-  const specialContent = getMainContent();
 
   return (
     <Router>
@@ -482,8 +309,16 @@ const App: React.FC = () => {
         {/* Protected Routes */}
         <Route path="*" element={
           currentUser ? (
-            <ProtectedLayout>
-              {specialContent ? specialContent : (
+            <div className="flex h-screen bg-gray-100 font-sans">
+              <Sidebar
+                companyName={companyName}
+                projects={projects}
+                selectedProject={selectedProject}
+                setSelectedProject={setSelectedProject}
+                onNewProjectClick={handleOpenNewProjectModal}
+                onLogoutClick={() => supabase.auth.signOut()}
+              />
+              <main className="flex-1 overflow-y-auto">
                 <Routes>
                   <Route path="/" element={<Dashboard projects={projects} onEditProject={handleOpenEditProjectModal} />} />
                   <Route path="/dashboard" element={<Dashboard projects={projects} onEditProject={handleOpenEditProjectModal} />} />
@@ -491,6 +326,25 @@ const App: React.FC = () => {
                   <Route path="/departamentos" element={<Departamentos departments={departments} addDepartment={addDepartment} deleteDepartment={deleteDepartment} />} />
                   <Route path="/equipes" element={<GestaoEquipes teams={teams} users={users} onAddTeam={handleOpenNewTeamModal} onEditTeam={handleOpenEditTeamModal} />} />
                   <Route path="/membros" element={<GestaoMembros users={users} onAddUser={handleOpenNewUserModal} onEditUser={handleOpenEditUserModal} />} />
+
+                  {/* Settings Route */}
+                  <Route path="/settings" element={
+                    <Settings
+                      onClose={() => { /* No back button inside needed typically if sidebar works, but keeping prop if req */ }}
+                      currentUser={currentUser}
+                      users={users}
+                      onAddUser={handleOpenNewUserModal}
+                      onEditUser={handleOpenEditUserModal}
+                      onDeleteUser={handleDeleteUser}
+                      companyName={companyName}
+                      setCompanyName={setCompanyName}
+                      theme={theme}
+                      setTheme={setTheme}
+                    />
+                  } />
+
+                  {/* Notifications Route */}
+                  <Route path="/notifications" element={<Notifications onClose={() => { }} />} />
 
                   <Route path="/projeto/:id/dashboard" element={<ProjectDashboard project={selectedProject} />} />
                   <Route path="/projeto/:id/cronograma" element={<ProjectCronograma
@@ -524,8 +378,61 @@ const App: React.FC = () => {
                   />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
+              </main>
+              {isProjectModalOpen && (
+                <ProjectFormModal
+                  onClose={() => setIsProjectModalOpen(false)}
+                  onSave={handleSaveProject}
+                  onDelete={handleDeleteProject}
+                  projectToEdit={projectToEdit}
+                  departments={departments}
+                  teams={teams}
+                />
               )}
-            </ProtectedLayout>
+              {isTaskModalOpen && selectedProject && (
+                <TaskFormModal
+                  onClose={() => setIsTaskModalOpen(false)}
+                  onSave={handleSaveTask}
+                  onDelete={handleDeleteTask}
+                  taskToEdit={taskToEdit}
+                  projectName={selectedProject.name}
+                  departments={departments}
+                />
+              )}
+              {isRiskModalOpen && selectedProject && (
+                <RiskFormModal
+                  onClose={() => setIsRiskModalOpen(false)}
+                  onSave={handleSaveRisk}
+                  riskToEdit={riskToEdit}
+                  projectName={selectedProject.name}
+                />
+              )}
+              {isQualityModalOpen && selectedProject && (
+                <QualityFormModal
+                  onClose={() => setIsQualityModalOpen(false)}
+                  onSave={handleSaveQualityCheck}
+                  qualityCheckToEdit={qualityCheckToEdit}
+                  projectName={selectedProject.name}
+                />
+              )}
+              {isTeamModalOpen && (
+                <TeamFormModal
+                  onClose={() => setIsTeamModalOpen(false)}
+                  onSave={handleSaveTeam}
+                  onDelete={handleDeleteTeam}
+                  teamToEdit={teamToEdit}
+                  users={users}
+                />
+              )}
+              {isUserModalOpen && (
+                <UserFormModal
+                  onClose={() => setIsUserModalOpen(false)}
+                  onSave={handleSaveUser}
+                  onDelete={handleDeleteUser}
+                  userToEdit={userToEdit}
+                />
+              )}
+            </div>
           ) : (
             <Navigate to="/login" />
           )

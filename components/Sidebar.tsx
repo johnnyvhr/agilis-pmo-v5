@@ -48,12 +48,10 @@ interface SidebarProps {
   selectedProject: Project | null;
   setSelectedProject: (project: Project | null) => void;
   onNewProjectClick: () => void;
-  onSettingsClick: () => void;
-  onNotificationsClick: () => void;
   onLogoutClick: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ companyName, projects, selectedProject, setSelectedProject, onNewProjectClick, onSettingsClick, onNotificationsClick, onLogoutClick }) => {
+const Sidebar: React.FC<SidebarProps> = ({ companyName, projects, selectedProject, setSelectedProject, onNewProjectClick, onLogoutClick }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
@@ -91,15 +89,15 @@ const Sidebar: React.FC<SidebarProps> = ({ companyName, projects, selectedProjec
             {companyName}
           </h2>
           <button
-            onClick={onSettingsClick}
+            onClick={() => navigate('/settings')}
             className="flex items-center space-x-3 p-2 mt-2 rounded-md w-full text-left text-slate-300 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <SettingsIcon className="w-5 h-5" />
             <span>Configurações</span>
           </button>
           <button
-            onClick={onNotificationsClick}
-            className="flex items-center space-x-3 p-2 mt-2 rounded-md w-full text-left text-slate-300 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onClick={() => navigate('/notifications')}
+            className={`flex items-center space-x-3 p-2 mt-2 rounded-md w-full text-left focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentPath === '/notifications' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
           >
             <BellIcon className="w-5 h-5" />
             <span>Notificações</span>
@@ -206,13 +204,7 @@ const Sidebar: React.FC<SidebarProps> = ({ companyName, projects, selectedProjec
             onClick={() => selectedProject && navigate(`/projeto/${selectedProject.id}/equipes`)}
             disabled={!selectedProject}
           />
-          <NavItem
-            icon={<UsersIcon className="w-5 h-5" />}
-            label="Vista"
-            active={selectedProject ? currentPath === `/projeto/${selectedProject.id}/vista` : false}
-            onClick={() => selectedProject && navigate(`/projeto/${selectedProject.id}/vista`)}
-            disabled={!selectedProject}
-          />
+
         </NavGroup>
       </nav>
       <div className="border-t border-slate-700 pt-4">

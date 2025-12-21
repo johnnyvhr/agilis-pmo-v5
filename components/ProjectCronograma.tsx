@@ -88,6 +88,19 @@ const ProjectCronograma: React.FC<ProjectCronogramaProps> = ({ onAddTask, onEdit
             if (appliedFilters.group !== 'Todos' && task.group !== appliedFilters.group) return false;
 
             return true;
+        }).sort((a, b) => {
+            // Primary: Start Date (Ascending)
+            const startA = new Date(a.plannedStart).getTime();
+            const startB = new Date(b.plannedStart).getTime();
+            if (startA !== startB) return startA - startB;
+
+            // Secondary: End Date (Ascending)
+            const endA = new Date(a.plannedEnd).getTime();
+            const endB = new Date(b.plannedEnd).getTime();
+            if (endA !== endB) return endA - endB;
+
+            // Tertiary: Name (Alphabetical)
+            return a.name.localeCompare(b.name);
         });
     }, [tasks, appliedFilters]);
 

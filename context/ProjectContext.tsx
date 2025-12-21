@@ -60,7 +60,40 @@ const initialProjects: Project[] = [];
 
 
 export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [companyName, setCompanyName] = useState('Sua Empresa');
+    const [companyName, setLocalCompanyName] = useState('Sua Empresa');
+    const [orgId, setOrgId] = useState<string | null>(null);
+
+    const setCompanyName = async (name: string) => {
+        if (!orgId) {
+            console.error("No Organization ID found cannot update name.");
+            return;
+        }
+
+        const oldName = companyName;
+        // Optimistic update
+        setLocalCompanyName(name);
+
+        try {
+            const { error } = await supabase
+                .from('organization_settings')
+                .update({ name: name, updated_at: new Date() })
+                .eq('id', orgId);
+
+            if (error) {
+                // Revert on error
+                console.error("Error updating company name:", error);
+                setLocalCompanyName(oldName);
+                if (error.code === '42501' || error.message.includes('polic')) {
+                    alert("Permissão negada: Apenas administradores podem alterar o nome do ambiente.");
+                } else {
+                    alert("Erro ao atualizar nome do ambiente: " + error.message);
+                }
+            }
+        } catch (err) {
+            setLocalCompanyName(oldName);
+            console.error(err);
+        }
+    };
     const [projects, setProjects] = useState<Project[]>([]);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [departments, setDepartments] = useState<string[]>([]);
@@ -71,137 +104,196 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     const [teams, setTeams] = useState<Team[]>([]);
     const [currentUser, setCurrentUser] = useState<User | null>(null); // Start null, wait for auth
 
-    // Fetch Initial Data
+    // Auth Listener Effect
     useEffect(() => {
-        const fetchData = async () => {
-            // Fetch Projects
-            const { data: projectsData, error: projectsError } = await supabase
-                .from('projects')
-                .select('*');
+        const validateAndSetUser = async (session: any) => {
+            if (session?.user) {
+                // Fetch profile to get real role and status
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
 
-            let loadedProjects: Project[] = [];
-            if (projectsData) {
-                loadedProjects = projectsData.map((p: any) => ({
-                    id: p.id,
-                    name: p.name,
-                    description: p.description,
-                    manager: p.manager_name,
-                    client: '', // Not in DB schema
-                    startDate: p.start_date,
-                    endDate: p.end_date,
-                    status: p.status,
-                    departmentBudgets: {}, // Not in DB schema
-                    contractAdditives: [], // Not in DB schema
-                    associatedTeamIds: p.associated_team_ids || []
-                }));
-                setProjects(loadedProjects);
+                if (profile) {
+                    // Check for Inactive Status
+                    if (profile.status === 'Inativo' || profile.status === 'inativo') {
+                        await supabase.auth.signOut();
+                        alert("Sua conta está desativada. Entre em contato com o administrador.");
+                        setCurrentUser(null);
+                        return;
+                    }
+
+                    setCurrentUser({
+                        id: profile.id,
+                        name: profile.name || session.user.email,
+                        email: profile.email || session.user.email!,
+                        role: profile.role as UserRole,
+                        status: profile.status || 'Ativo'
+                    });
+                } else {
+                    // Fallback for new users without profile (handled by trigger but just in case)
+                    setCurrentUser({
+                        id: 1, // temporary mapping
+                        name: session.user.user_metadata.name || session.user.email,
+                        email: session.user.email!,
+                        role: UserRole.User,
+                        status: 'Ativo'
+                    });
+                }
+            } else {
+                setCurrentUser(null);
+                setProjects([]);
+                setTasks([]);
+                setRisks([]);
+                setQualityChecks([]);
+                setTeams([]);
+                setUsers([]);
             }
-
-            // Fetch Tasks
-            const { data: tasksData } = await supabase.from('tasks').select('*');
-            if (tasksData) {
-                const loadedTasks = tasksData.map((t: any) => {
-                    const relatedProject = loadedProjects.find(p => p.id === t.project_id);
-                    return {
-                        id: t.id,
-                        projectName: relatedProject ? relatedProject.name : 'Unknown',
-                        group: t.group_name,
-                        name: t.name,
-                        responsible: t.responsible,
-                        department: t.dept,
-                        plannedStart: t.planned_start,
-                        plannedEnd: t.planned_end,
-                        plannedDuration: t.planned_duration,
-                        percentComplete: t.percent_complete,
-                        actualStart: t.actual_start,
-                        actualEnd: t.actual_end,
-                        actualDuration: t.actual_duration,
-                        status: t.status
-                    };
-                });
-                setTasks(loadedTasks);
-            }
-
-            // Fetch Risks
-            const { data: risksData } = await supabase.from('risks').select('*');
-            if (risksData) {
-                const loadedRisks = risksData.map((r: any) => {
-                    const relatedProject = loadedProjects.find(p => p.id === r.project_id);
-                    return {
-                        id: r.id,
-                        projectName: relatedProject ? relatedProject.name : 'Unknown',
-                        description: r.description,
-                        category: '', // Not in DB
-                        probability: r.probability,
-                        impact: r.impact,
-                        responsible: r.owner,
-                        status: r.status,
-                        lastUpdate: r.created_at, // approximation
-                        mitigationPlan: r.mitigation_plan
-                    };
-                });
-                setRisks(loadedRisks);
-            }
-
-            // Fetch Quality Checks
-            const { data: qcData } = await supabase.from('quality_checks').select('*');
-            if (qcData) {
-                const loadedQCs = qcData.map((abc: any) => {
-                    const relatedProject = loadedProjects.find(p => p.id === abc.project_id);
-                    return {
-                        id: abc.id,
-                        projectName: relatedProject ? relatedProject.name : 'Unknown',
-                        item: abc.item,
-                        category: '', // Not in DB
-                        responsible: abc.responsible,
-                        status: abc.status,
-                        lastUpdate: abc.created_at, // approximation
-                        details: abc.criteria || abc.comments || ''
-                    };
-                });
-                setQualityChecks(loadedQCs);
-            }
-
-            // Fetch Teams
-            const { data: teamsData } = await supabase.from('teams').select('*');
-            if (teamsData) setTeams(teamsData as any);
-
-            // Fetch Profiles/Users
-            const { data: usersData } = await supabase.from('profiles').select('*');
-            if (usersData) setUsers(usersData.map((u: any) => ({ ...u, status: 'Ativo' })) as any);
         };
-
-        fetchData();
 
         // Check active session
         supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session?.user) {
-                setCurrentUser({
-                    id: 1, // temporary mapping or fetch from profiles
-                    name: session.user.user_metadata.name || session.user.email,
-                    email: session.user.email!,
-                    role: UserRole.Admin, // fetch from profile
-                    status: 'Ativo'
-                });
-            }
+            validateAndSetUser(session);
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            if (session?.user) {
-                setCurrentUser({
-                    id: 1, // temporary mapping
-                    name: session.user.user_metadata.name || session.user.email,
-                    email: session.user.email!,
-                    role: UserRole.Admin,
-                    status: 'Ativo'
-                });
-            } else {
-                setCurrentUser(null);
-            }
+            validateAndSetUser(session);
         });
 
         return () => subscription.unsubscribe();
     }, []);
+
+    // Data Fetching Effect - Depends on currentUser
+    useEffect(() => {
+        if (!currentUser) return;
+
+        const fetchData = async () => {
+            try {
+                // Fetch Organization Settings
+                const { data: orgSettings } = await supabase
+                    .from('organization_settings')
+                    .select('*')
+                    .single();
+
+                if (orgSettings) {
+                    setLocalCompanyName(orgSettings.name);
+                    setOrgId(orgSettings.id);
+                }
+
+                // Fetch Projects
+                const { data: projectsData, error: projectsError } = await supabase
+                    .from('projects')
+                    .select('*');
+
+                if (projectsError) throw projectsError;
+
+                let loadedProjects: Project[] = [];
+                if (projectsData) {
+                    loadedProjects = projectsData.map((p: any) => ({
+                        id: p.id,
+                        name: p.name,
+                        description: p.description,
+                        manager: p.manager_name,
+                        client: '', // Not in DB schema
+                        startDate: p.start_date,
+                        endDate: p.end_date,
+                        status: p.status,
+                        departmentBudgets: {}, // Not in DB schema
+                        contractAdditives: [], // Not in DB schema
+                        associatedTeamIds: p.associated_team_ids || []
+                    }));
+                    setProjects(loadedProjects);
+                }
+
+                // Fetch Tasks
+                const { data: tasksData } = await supabase
+                    .from('tasks')
+                    .select('*')
+                    .order('planned_start', { ascending: true });
+                if (tasksData) {
+                    const loadedTasks = tasksData.map((t: any) => {
+                        const relatedProject = loadedProjects.find(p => p.id === t.project_id);
+                        return {
+                            id: t.id,
+                            projectName: relatedProject ? relatedProject.name : 'Unknown',
+                            group: t.group_name,
+                            name: t.name,
+                            responsible: t.responsible,
+                            department: t.dept,
+                            plannedStart: t.planned_start,
+                            plannedEnd: t.planned_end,
+                            plannedDuration: t.planned_duration,
+                            percentComplete: t.percent_complete,
+                            actualStart: t.actual_start,
+                            actualEnd: t.actual_end,
+                            actualDuration: t.actual_duration,
+                            status: t.status
+                        };
+                    });
+                    setTasks(loadedTasks);
+                }
+
+                // Fetch Risks
+                const { data: risksData } = await supabase.from('risks').select('*');
+                if (risksData) {
+                    const loadedRisks = risksData.map((r: any) => {
+                        const relatedProject = loadedProjects.find(p => p.id === r.project_id);
+                        return {
+                            id: r.id,
+                            projectName: relatedProject ? relatedProject.name : 'Unknown',
+                            description: r.description,
+                            category: '', // Not in DB
+                            probability: r.probability,
+                            impact: r.impact,
+                            responsible: r.owner,
+                            status: r.status,
+                            lastUpdate: r.created_at, // approximation
+                            mitigationPlan: r.mitigation_plan
+                        };
+                    });
+                    setRisks(loadedRisks);
+                }
+
+                // Fetch Quality Checks
+                const { data: qcData } = await supabase.from('quality_checks').select('*');
+                if (qcData) {
+                    const loadedQCs = qcData.map((abc: any) => {
+                        const relatedProject = loadedProjects.find(p => p.id === abc.project_id);
+                        return {
+                            id: abc.id,
+                            projectName: relatedProject ? relatedProject.name : 'Unknown',
+                            item: abc.item,
+                            category: '', // Not in DB
+                            responsible: abc.responsible,
+                            status: abc.status,
+                            lastUpdate: abc.created_at, // approximation
+                            details: abc.criteria || abc.comments || ''
+                        };
+                    });
+                    setQualityChecks(loadedQCs);
+                }
+
+                // Fetch Teams
+                const { data: teamsData } = await supabase.from('teams').select('*');
+                if (teamsData) setTeams(teamsData as any);
+
+                // Fetch Profiles/Users
+                const { data: usersData } = await supabase.from('profiles').select('*');
+                if (usersData) {
+                    setUsers(usersData.map((u: any) => ({
+                        ...u,
+                        status: u.status || 'Ativo' // Use DB status or default
+                    })) as any);
+                }
+
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        };
+
+        fetchData();
+    }, [currentUser]);
 
     // Set initial selected project if available and none selected
     useEffect(() => {
@@ -457,13 +549,39 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         setUsers(users.map(u => u.id === user.id ? user : u));
     };
     const deleteUser = async (id: number) => {
-        // Soft delete or real delete?
-        setUsers(users.filter(u => u.id !== id));
-        // Also remove from teams
-        setTeams(teams.map(team => ({
-            ...team,
-            members: team.members.filter(m => m.userId !== id)
-        })));
+        try {
+            // Delete from profiles table (Hard delete for now, effectively removing member)
+            // We use 'id' as any because at runtime it is likely a UUID string
+            const { data, error } = await supabase.from('profiles').delete().eq('id', id).select();
+
+            if (error) {
+                console.error("Error deleting user:", error);
+                if (error.message?.includes('foreign key constraint') || error.details?.includes('foreign key constraint')) {
+                    alert("Não é possível excluir este usuário pois ele está vinculado a projetos ou outros registros. Remova as vinculações antes de tentar novamente.");
+                } else {
+                    alert(`Erro ao excluir usuário: ${error.message || 'Erro desconhecido'}`);
+                }
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                alert("Falha ao excluir. O usuário pode não existir ou você não tem permissão (RLS) para realizar esta ação.");
+                return;
+            }
+
+            // Update local state only on success
+            setUsers(prevUsers => prevUsers.filter(u => u.id !== id));
+
+            // Also remove from teams - assuming local consistency needs maintenance
+            setTeams(prevTeams => prevTeams.map(team => ({
+                ...team,
+                members: team.members.filter(m => m.userId !== id)
+            })));
+
+        } catch (err) {
+            console.error("Unexpected error deleting user:", err);
+            alert("Erro inesperado ao excluir usuário.");
+        }
     };
 
     const resetData = () => {

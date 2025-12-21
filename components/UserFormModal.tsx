@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { User, UserRole } from '../types';
+import { User, UserRole, ROLE_LABELS } from '../types';
 import { TrashIcon, LinkIcon } from './icons';
 
 interface UserFormModalProps {
@@ -35,11 +35,11 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ onClose, onSave, onDelete
 
     useEffect(() => {
         if (userToEdit) {
-            setFormData({ 
-                name: userToEdit.name, 
-                email: userToEdit.email, 
-                role: userToEdit.role, 
-                status: userToEdit.status 
+            setFormData({
+                name: userToEdit.name,
+                email: userToEdit.email,
+                role: userToEdit.role,
+                status: userToEdit.status
             });
         }
         // No need to reset for Invite mode as states are separate
@@ -52,8 +52,8 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ onClose, onSave, onDelete
 
     const handleSaveEdit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!userToEdit) return; 
-        
+        if (!userToEdit) return;
+
         if (!formData.name) {
             alert('O nome do membro é obrigatório.');
             return;
@@ -107,24 +107,25 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ onClose, onSave, onDelete
                             <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-slate-100" readOnly />
                         </div>
                         <div>
-                           <label htmlFor="role" className="block text-sm font-medium text-slate-700">Função</label>
+                            <label htmlFor="role" className="block text-sm font-medium text-slate-700">Função</label>
                             <select id="role" name="role" value={formData.role} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500">
                                 {Object.values(UserRole).map(role => (
-                                    <option key={role} value={role}>{role}</option>
+                                    <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                                 ))}
                             </select>
                         </div>
                         <div>
-                           <label htmlFor="status" className="block text-sm font-medium text-slate-700">Status</label>
+                            <label htmlFor="status" className="block text-sm font-medium text-slate-700">Status</label>
                             <select id="status" name="status" value={formData.status} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500">
                                 <option value="Ativo">Ativo</option>
                                 <option value="Pendente">Pendente</option>
+                                <option value="Inativo">Inativo</option>
                             </select>
                         </div>
 
                         <div className="flex justify-between items-center pt-6 border-t border-slate-100 mt-4">
                             <button type="button" onClick={handleDelete} className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-md hover:bg-red-100 font-medium flex items-center space-x-2 transition-colors">
-                                <TrashIcon className="w-4 h-4"/> <span>Excluir</span>
+                                <TrashIcon className="w-4 h-4" /> <span>Excluir</span>
                             </button>
                             <div className="flex space-x-3">
                                 <button type="button" onClick={onClose} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50 font-medium transition-colors">
@@ -154,40 +155,40 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ onClose, onSave, onDelete
                         </div>
 
                         <div>
-                           <label htmlFor="inviteRole" className="block text-sm font-medium text-slate-700 mb-1">Definir Função do Convidado</label>
-                            <select 
-                                id="inviteRole" 
-                                name="inviteRole" 
-                                value={inviteRole} 
-                                onChange={(e) => setInviteRole(e.target.value as UserRole)} 
+                            <label htmlFor="inviteRole" className="block text-sm font-medium text-slate-700 mb-1">Definir Função do Convidado</label>
+                            <select
+                                id="inviteRole"
+                                name="inviteRole"
+                                value={inviteRole}
+                                onChange={(e) => setInviteRole(e.target.value as UserRole)}
                                 className="block w-full px-3 py-2 border border-slate-300 rounded-md bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500"
                             >
                                 {Object.values(UserRole).map(role => (
-                                    <option key={role} value={role}>{role}</option>
+                                    <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                                 ))}
                             </select>
                         </div>
-                        
+
                         {!generatedLink ? (
-                             <button 
-                                type="button" 
-                                onClick={handleGenerateLink} 
+                            <button
+                                type="button"
+                                onClick={handleGenerateLink}
                                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                             >
+                            >
                                 Gerar Link de Convite
                             </button>
                         ) : (
                             <div className="space-y-3 animate-fade-in bg-slate-50 p-4 rounded-lg border border-slate-200">
                                 <label className="block text-sm font-medium text-slate-700">Link de Acesso Gerado</label>
                                 <div className="flex shadow-sm rounded-md">
-                                    <input 
-                                        type="text" 
-                                        value={generatedLink} 
-                                        readOnly 
-                                        className="flex-1 min-w-0 block w-full px-3 py-2 rounded-l-md border border-r-0 border-slate-300 bg-white text-slate-600 sm:text-sm font-mono focus:ring-0" 
+                                    <input
+                                        type="text"
+                                        value={generatedLink}
+                                        readOnly
+                                        className="flex-1 min-w-0 block w-full px-3 py-2 rounded-l-md border border-r-0 border-slate-300 bg-white text-slate-600 sm:text-sm font-mono focus:ring-0"
                                     />
-                                    <button 
-                                        type="button" 
+                                    <button
+                                        type="button"
                                         onClick={handleCopyLink}
                                         className={`inline-flex items-center px-4 py-2 border border-l-0 border-slate-300 rounded-r-md bg-slate-100 text-sm font-medium ${isLinkCopied ? 'text-green-600 bg-green-50' : 'text-slate-700 hover:bg-slate-200'} focus:outline-none focus:ring-1 focus:ring-blue-500`}
                                     >
@@ -196,15 +197,15 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ onClose, onSave, onDelete
                                     </button>
                                 </div>
                                 <p className="text-xs text-slate-500 text-center mt-2">
-                                    Este link é único e expira em 7 dias. O usuário entrará como <strong>{inviteRole}</strong>.
+                                    Este link é único e expira em 7 dias. O usuário entrará como <strong>{ROLE_LABELS[inviteRole]}</strong>.
                                 </p>
                             </div>
                         )}
-                        
+
                         <div className="flex justify-end pt-4 border-t border-slate-100">
-                            <button 
-                                type="button" 
-                                onClick={onClose} 
+                            <button
+                                type="button"
+                                onClick={onClose}
                                 className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50 font-medium transition-colors"
                             >
                                 Concluído

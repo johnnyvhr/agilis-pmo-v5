@@ -83,19 +83,29 @@ export interface QualityCheck {
 }
 
 export enum UserRole {
-  Admin = 'Administrador',
-  PMOManager = 'Gestor do PMO',
-  ProjectManager = 'Gerente de Projeto',
-  TeamMember = 'Membro da Equipe',
-  Stakeholder = 'Stakeholder',
+  Admin = 'admin',
+  PMOManager = 'pmo_manager',
+  ProjectManager = 'project_manager',
+  TeamMember = 'team_member',
+  Stakeholder = 'stakeholder',
+  User = 'user'
 }
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  [UserRole.Admin]: 'Administrador',
+  [UserRole.PMOManager]: 'Gestor do PMO',
+  [UserRole.ProjectManager]: 'Gerente de Projeto',
+  [UserRole.TeamMember]: 'Membro da Equipe',
+  [UserRole.Stakeholder]: 'Stakeholder',
+  [UserRole.User]: 'Usuário'
+};
 
 export interface User {
   id: number;
   name: string;
   email: string;
   role: UserRole;
-  status: 'Ativo' | 'Pendente';
+  status: 'Ativo' | 'Pendente' | 'Inativo';
 }
 
 export interface TeamMember {
