@@ -1,16 +1,41 @@
 
 import React, { useState, useEffect } from 'react';
 import { Medicao, Project } from '../types';
+import { supabase } from '../lib/supabaseClient';
 
 interface MedicaoFormModalProps {
     onClose: () => void;
-    onSave: (medicao: Omit<Medicao, 'id'> & { id?: number }) => void;
+    onSave: (medicao: Omit<Medicao, 'id'> & { id?: string }) => void;
     medicaoToEdit: Medicao | null;
     projects: Project[];
-    departments: string[];
+    departments: string[]; // Keeping for compatibility, but using DB data
 }
 
-const MedicaoFormModal: React.FC<MedicaoFormModalProps> = ({ onClose, onSave, medicaoToEdit, projects, departments }) => {
+const MedicaoFormModal: React.FC<MedicaoFormModalProps> = ({ onClose, onSave, medicaoToEdit, projects }) => {
+
+    // Departments state
+    const [dbDepartments, setDbDepartments] = useState<string[]>([]);
+    const [loadingDepartments, setLoadingDepartments] = useState(false);
+
+    useEffect(() => {
+        const fetchDepartments = async () => {
+            setLoadingDepartments(true);
+            const { data, error } = await supabase
+                .from('departments')
+                .select('name')
+                .order('name', { ascending: true });
+
+            if (!error && data) {
+                setDbDepartments(data.map((d: any) => d.name));
+            } else if (error) {
+                console.error("Error fetching departments", error);
+            }
+            setLoadingDepartments(false);
+        };
+
+        fetchDepartments();
+    }, []);
+
     const [formData, setFormData] = useState({
         projeto: medicaoToEdit?.projeto || (projects.length > 0 ? projects[0].name : ''),
         item: medicaoToEdit?.item || '',
@@ -18,7 +43,7 @@ const MedicaoFormModal: React.FC<MedicaoFormModalProps> = ({ onClose, onSave, me
         unidade: medicaoToEdit?.unidade || '',
         valorUnitario: medicaoToEdit?.valorUnitario || 0,
         data: medicaoToEdit?.data || '',
-        departamento: medicaoToEdit?.departamento || (departments.length > 0 ? departments[0] : ''),
+        departamento: medicaoToEdit?.departamento || '',
     });
 
     useEffect(() => {
@@ -42,12 +67,15 @@ const MedicaoFormModal: React.FC<MedicaoFormModalProps> = ({ onClose, onSave, me
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const dataToSave = medicaoToEdit ? { ...formData, id: medicaoToEdit.id } : formData;
+        const selectedProject = projects.find(p => p.name === formData.projeto);
+        const dataToSave = medicaoToEdit
+            ? { ...formData, id: medicaoToEdit.id, projectId: selectedProject?.id }
+            : { ...formData, projectId: selectedProject?.id };
         onSave(dataToSave);
     };
-    
+
     return (
-        <div 
+        <div
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
             aria-modal="true"
             role="dialog"
@@ -65,12 +93,14 @@ const MedicaoFormModal: React.FC<MedicaoFormModalProps> = ({ onClose, onSave, me
                         <div>
                             <label htmlFor="departamento" className="block text-sm font-medium text-slate-700">Departamento</label>
                             <select id="departamento" name="departamento" value={formData.departamento} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md" required>
-                               {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                                <option value="">Selecione...</option>
+                                {loadingDepartments && <option disabled>Carregando departamentos...</option>}
+                                {!loadingDepartments && dbDepartments.map(d => <option key={d} value={d}>{d}</option>)}
                             </select>
                         </div>
                     </div>
 
-                     <div>
+                    <div>
                         <label htmlFor="item" className="block text-sm font-medium text-slate-700">Item Medido</label>
                         <input type="text" id="item" name="item" value={formData.item} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md" required />
                     </div>
@@ -81,7 +111,7 @@ const MedicaoFormModal: React.FC<MedicaoFormModalProps> = ({ onClose, onSave, me
                             <input type="number" id="qtd" name="qtd" value={formData.qtd} onChange={handleChange} step="any" className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md" required />
                         </div>
                         <div>
-                             <label htmlFor="unidade" className="block text-sm font-medium text-slate-700">Unidade</label>
+                            <label htmlFor="unidade" className="block text-sm font-medium text-slate-700">Unidade</label>
                             <input type="text" id="unidade" name="unidade" value={formData.unidade} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md" required />
                         </div>
                     </div>
@@ -91,12 +121,12 @@ const MedicaoFormModal: React.FC<MedicaoFormModalProps> = ({ onClose, onSave, me
                             <label htmlFor="valorUnitario" className="block text-sm font-medium text-slate-700">Valor Unitário (R$)</label>
                             <input type="number" id="valorUnitario" name="valorUnitario" value={formData.valorUnitario} onChange={handleChange} step="any" className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md" required />
                         </div>
-                         <div>
+                        <div>
                             <label htmlFor="data" className="block text-sm font-medium text-slate-700">Data da Medição</label>
                             <input type="date" id="data" name="data" value={formData.data} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md" required />
                         </div>
                     </div>
-                    
+
                     <div className="flex justify-end space-x-4 pt-4">
                         <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300 font-medium">
                             Cancelar

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Task, TaskStatus } from '../types';
 import { TrashIcon } from './icons';
+import { supabase } from '../lib/supabaseClient';
 
 interface TaskFormModalProps {
     onClose: () => void;
@@ -9,11 +10,34 @@ interface TaskFormModalProps {
     onDelete: (taskId: number) => void;
     taskToEdit: Task | null;
     projectName: string;
-    departments: string[];
+    departments: string[]; // Keeping this prop for compatibility, but we'll use DB data.
 }
 
-const TaskFormModal: React.FC<TaskFormModalProps> = ({ onClose, onSave, onDelete, taskToEdit, projectName, departments }) => {
-    
+const TaskFormModal: React.FC<TaskFormModalProps> = ({ onClose, onSave, onDelete, taskToEdit, projectName }) => {
+
+    // Departments state
+    const [dbDepartments, setDbDepartments] = useState<string[]>([]);
+    const [loadingDepartments, setLoadingDepartments] = useState(false);
+
+    useEffect(() => {
+        const fetchDepartments = async () => {
+            setLoadingDepartments(true);
+            const { data, error } = await supabase
+                .from('departments')
+                .select('name')
+                .order('name', { ascending: true });
+
+            if (!error && data) {
+                setDbDepartments(data.map((d: any) => d.name));
+            } else if (error) {
+                console.error("Error fetching departments", error);
+            }
+            setLoadingDepartments(false);
+        };
+
+        fetchDepartments();
+    }, []);
+
     const getInitialFormData = () => {
         if (taskToEdit) {
             return taskToEdit;
@@ -23,7 +47,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ onClose, onSave, onDelete
             group: '',
             name: '',
             responsible: '',
-            department: departments.length > 0 ? departments[0] : '',
+            department: '',
             plannedStart: '',
             plannedEnd: '',
             plannedDuration: 0,
@@ -38,6 +62,10 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ onClose, onSave, onDelete
     const [formData, setFormData] = useState<Omit<Task, 'id'>>(getInitialFormData);
 
     useEffect(() => {
+        // If editing and departments are loaded, ensure the department matches if possible.
+        // If adding new, we can default to the first department if we want, or keep empty.
+        // For editing, getInitialFormData handles it.
+        // We just need to make sure formData is updated if taskToEdit changes.
         setFormData(getInitialFormData());
     }, [taskToEdit, projectName]);
 
@@ -92,7 +120,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ onClose, onSave, onDelete
             onDelete(taskToEdit.id);
         }
     };
-    
+
     // Check if fields should be locked (when status is 'Travado')
     const isLocked = formData.status === 'Travado';
 
@@ -104,7 +132,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ onClose, onSave, onDelete
                     <button onClick={onClose} className="text-slate-500 hover:text-slate-800 text-2xl" aria-label="Fechar">&times;</button>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label htmlFor="name" className="block text-sm font-medium text-slate-700">Atividade/Marco *</label>
@@ -125,7 +153,8 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ onClose, onSave, onDelete
                             <label htmlFor="department" className="block text-sm font-medium text-slate-700">Departamento</label>
                             <select id="department" name="department" value={formData.department} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white">
                                 <option value="">Selecione...</option>
-                                {departments.map(dep => <option key={dep} value={dep}>{dep}</option>)}
+                                {loadingDepartments && <option disabled>Carregando departamentos...</option>}
+                                {!loadingDepartments && dbDepartments.map(dep => <option key={dep} value={dep}>{dep}</option>)}
                             </select>
                         </div>
                     </div>
@@ -147,7 +176,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ onClose, onSave, onDelete
                             </div>
                         </div>
                     </div>
-                    
+
                     <div className="p-4 border rounded-md relative">
                         {isLocked && (
                             <div className="absolute top-0 right-0 p-2 text-xs text-red-500 font-bold bg-white border border-red-200 rounded-bl-md">
@@ -155,27 +184,27 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ onClose, onSave, onDelete
                             </div>
                         )}
                         <h3 className="font-semibold text-slate-700 mb-2">Real</h3>
-                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label htmlFor="actualStart" className="block text-sm font-medium text-slate-700">Início Real</label>
-                                <input 
-                                    type="date" 
-                                    id="actualStart" 
-                                    name="actualStart" 
-                                    value={formData.actualStart || ''} 
-                                    onChange={handleChange} 
+                                <input
+                                    type="date"
+                                    id="actualStart"
+                                    name="actualStart"
+                                    value={formData.actualStart || ''}
+                                    onChange={handleChange}
                                     disabled={isLocked}
                                     className={`mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md ${isLocked ? 'bg-slate-100 cursor-not-allowed text-slate-500' : ''}`}
                                 />
                             </div>
                             <div>
                                 <label htmlFor="actualEnd" className="block text-sm font-medium text-slate-700">Término Real</label>
-                                <input 
-                                    type="date" 
-                                    id="actualEnd" 
-                                    name="actualEnd" 
-                                    value={formData.actualEnd || ''} 
-                                    onChange={handleChange} 
+                                <input
+                                    type="date"
+                                    id="actualEnd"
+                                    name="actualEnd"
+                                    value={formData.actualEnd || ''}
+                                    onChange={handleChange}
                                     disabled={isLocked}
                                     className={`mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md ${isLocked ? 'bg-slate-100 cursor-not-allowed text-slate-500' : ''}`}
                                 />
@@ -188,21 +217,21 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ onClose, onSave, onDelete
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <div>
+                        <div>
                             <label htmlFor="percentComplete" className="block text-sm font-medium text-slate-700">% Concluído</label>
-                            <input 
-                                type="number" 
-                                id="percentComplete" 
-                                name="percentComplete" 
-                                min="0" 
-                                max="100" 
-                                value={formData.percentComplete} 
-                                onChange={handleChange} 
+                            <input
+                                type="number"
+                                id="percentComplete"
+                                name="percentComplete"
+                                min="0"
+                                max="100"
+                                value={formData.percentComplete}
+                                onChange={handleChange}
                                 disabled={isLocked}
                                 className={`mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md ${isLocked ? 'bg-slate-100 cursor-not-allowed text-slate-500' : ''}`}
                             />
                         </div>
-                         <div>
+                        <div>
                             <label htmlFor="status" className="block text-sm font-medium text-slate-700">Status</label>
                             <select id="status" name="status" value={formData.status} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white">
                                 <option>Não Iniciada</option>
@@ -216,11 +245,11 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ onClose, onSave, onDelete
 
                     <div className="flex justify-between items-center pt-4">
                         <div>
-                        {taskToEdit && (
-                            <button type="button" onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium flex items-center space-x-2">
-                                <TrashIcon className="w-4 h-4"/> <span>Excluir</span>
-                            </button>
-                        )}
+                            {taskToEdit && (
+                                <button type="button" onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium flex items-center space-x-2">
+                                    <TrashIcon className="w-4 h-4" /> <span>Excluir</span>
+                                </button>
+                            )}
                         </div>
                         <div className="flex space-x-4">
                             <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300 font-medium">

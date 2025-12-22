@@ -23,14 +23,17 @@ export interface Project {
 }
 
 export interface Medicao {
-  id: number;
+  id: string;
   projeto: string;
+  projectId?: number;
   item: string;
   qtd: number;
   unidade: string;
   valorUnitario: number;
   data: string;
   departamento: string;
+  status: 'Planejada' | 'Solicitada' | 'Faturada';
+  createdByUsername?: string;
 }
 
 export type TaskStatus = 'Não Iniciada' | 'Em Andamento' | 'Concluída' | 'Atrasada' | 'Travado';

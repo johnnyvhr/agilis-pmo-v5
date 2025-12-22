@@ -227,3 +227,51 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+-- MEASUREMENTS
+create table if not exists project_measurements (
+  id uuid default uuid_generate_v4() primary key,
+  project_id bigint references projects(id) on delete cascade not null,
+  item_name text not null,
+  quantity numeric not null,
+  unit text,
+  unit_price numeric,
+  total_price numeric,
+  measurement_date date,
+  department text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table project_measurements enable row level security;
+
+do $$ begin
+  drop policy if exists "Measurements are viewable by authenticated users." on project_measurements;
+  drop policy if exists "Authenticated users can insert measurements." on project_measurements;
+  drop policy if exists "Authenticated users can update measurements." on project_measurements;
+  drop policy if exists "Authenticated users can delete measurements." on project_measurements;
+end $$;
+
+create policy "Measurements are viewable by authenticated users." on project_measurements for select using (auth.role() = 'authenticated');
+create policy "Authenticated users can insert measurements." on project_measurements for insert with check (auth.role() = 'authenticated');
+create policy "Authenticated users can update measurements." on project_measurements for update using (auth.role() = 'authenticated');
+create policy "Authenticated users can delete measurements." on project_measurements for delete using (auth.role() = 'authenticated');
+
+
+-- DEPARTMENTS
+create table if not exists departments (
+  id uuid default uuid_generate_v4() primary key,
+  name text not null unique,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table departments enable row level security;
+
+do c:\Users\johnn_1ux4gkw\OneDrive - E AGUA ENGENHARIA\Aplicativos\Agilis PMO\2. Development\agilis-pmo-v5 begin
+  drop policy if exists "Departments are viewable by authenticated users." on departments;
+  drop policy if exists "Authenticated users can insert departments." on departments;
+  drop policy if exists "Authenticated users can delete departments." on departments;
+end c:\Users\johnn_1ux4gkw\OneDrive - E AGUA ENGENHARIA\Aplicativos\Agilis PMO\2. Development\agilis-pmo-v5;
+
+create policy "Departments are viewable by authenticated users." on departments for select using (auth.role() = 'authenticated');
+create policy "Authenticated users can insert departments." on departments for insert with check (auth.role() = 'authenticated');
+create policy "Authenticated users can delete departments." on departments for delete using (auth.role() = 'authenticated');
+
