@@ -22,10 +22,14 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingMedicao, setEditingMedicao] = useState<Medicao | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
+    const [projectsList, setProjectsList] = useState<{ id: string, name: string }[]>([]);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     // Filter States
     const [statusFilter, setStatusFilter] = useState('');
     const [deptFilter, setDeptFilter] = useState('');
+    const [projectFilter, setProjectFilter] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
 
@@ -36,8 +40,7 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
             .from('project_measurements')
             .select(`
                 *,
-                projects (name),
-                profiles (name) 
+                projects (name)
             `)
             .order('measurement_date', { ascending: false });
 
@@ -66,11 +69,43 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
 
     useEffect(() => {
         fetchMedicoes();
+        fetchDepartments();
+        fetchProjects();
     }, []);
+
+    const fetchProjects = async () => {
+        const { data, error } = await supabase
+            .from('projects')
+            .select('id, name')
+            .order('name');
+
+        if (!error && data) {
+            setProjectsList(data);
+        }
+    };
+
+    const fetchDepartments = async () => {
+        const { data, error } = await supabase
+            .from('departments')
+            .select('name')
+            .order('name');
+
+        if (!error && data) {
+            setAvailableDepartments(data.map((d: any) => d.name));
+        }
+    };
 
     // Filter Logic
     useEffect(() => {
         let result = medicoes;
+
+        if (projectFilter) {
+            console.log('Filter Project ID:', projectFilter);
+            result = result.filter(m => {
+                console.log('Row Project ID:', m.projectId);
+                return String(m.projectId) === String(projectFilter);
+            });
+        }
 
         if (statusFilter) {
             result = result.filter(m => m.status === statusFilter);
@@ -89,7 +124,7 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
         }
 
         setFilteredMedicoes(result);
-    }, [medicoes, statusFilter, deptFilter, startDate, endDate]);
+    }, [medicoes, statusFilter, deptFilter, startDate, endDate, projectFilter]);
 
 
     const handleOpenAddModal = () => {
@@ -117,7 +152,41 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
         }
     }
 
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedIds(filteredMedicoes.map(m => m.id));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectRow = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+        );
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0) return;
+
+        if (window.confirm(`Tem certeza que deseja excluir ${selectedIds.length} medições selecionadas?`)) {
+            const { error } = await supabase
+                .from('project_measurements')
+                .delete()
+                .in('id', selectedIds);
+
+            if (error) {
+                alert('Erro ao excluir medições: ' + error.message);
+            } else {
+                setMedicoes(medicoes.filter(m => !selectedIds.includes(m.id)));
+                setSelectedIds([]);
+                alert(`${selectedIds.length} medições excluídas com sucesso.`);
+            }
+        }
+    };
+
     const handleStatusChange = async (id: string, newStatus: string, oldStatus: string) => {
+        // 1. Update the measurement status
         const { error } = await supabase
             .from('project_measurements')
             .update({ status: newStatus })
@@ -125,19 +194,81 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
 
         if (error) {
             alert('Erro ao atualizar status: ' + error.message);
-        } else {
-            // Update local state
-            setMedicoes(medicoes.map(m => m.id === id ? { ...m, status: newStatus as any } : m));
+            return;
+        }
 
-            // Feedback Logic
-            if (oldStatus === 'Faturada' && newStatus !== 'Faturada') {
-                // Reversal scenario
-                alert('Status atualizado e lançamento financeiro removido com sucesso.');
-            } else if (newStatus === 'Faturada' && oldStatus !== 'Faturada') {
-                // Creation scenario
-                alert(`Status atualizado para 'Faturada' e receita lançada no financeiro.`);
+        // 2. Handle Financial Records Sync
+        const measurement = medicoes.find(m => m.id === id);
+        if (!measurement) return;
+
+        // SCENARIO A: Status is now 'Faturada' -> Ensure Revenue Exists
+        if (newStatus === 'Faturada') {
+            // Check if record already exists to avoid duplicates
+            const { data: existingRecords, error: fetchError } = await supabase
+                .from('financial_records')
+                .select('id')
+                .eq('measurement_id', id);
+
+            if (fetchError) {
+                console.error("Error fetching existing financial records:", fetchError);
+                return;
+            }
+
+            const revenuePayload = {
+                project_id: measurement.projectId,
+                description: `Medição Faturada: ${measurement.item}`,
+                type: 'Receita',
+                amount: measurement.qtd * measurement.valorUnitario,
+                date: measurement.data,
+                measurement_id: id
+            };
+
+            if (existingRecords && existingRecords.length > 0) {
+                // UPDATE existing record
+                const { error: updateError } = await supabase
+                    .from('financial_records')
+                    .update(revenuePayload)
+                    .eq('measurement_id', id);
+
+                if (updateError) console.error("Error updating revenue:", updateError);
+                else console.log("Financial record updated for Faturada status.");
+
+            } else {
+                // INSERT new record
+                const { error: insertError } = await supabase
+                    .from('financial_records')
+                    .insert([revenuePayload]);
+
+                if (insertError) {
+                    console.error("Error creating revenue:", insertError);
+                    alert("Aviso: Status 'Faturada' salvo, mas erro ao criar financeiro.");
+                } else {
+                    alert("Status atualizado para Faturada. Receita lançada.");
+                }
             }
         }
+
+        // SCENARIO B: Status is NOT 'Faturada' -> Ensure Revenue is Deleted
+        if (newStatus !== 'Faturada') {
+            // Always try to delete if key exists, just to be safe and enforce 1-to-1 rule
+            const { error: deleteError } = await supabase
+                .from('financial_records')
+                .delete()
+                .eq('measurement_id', id);
+
+            if (deleteError) {
+                console.error("Error deleting financial record:", deleteError);
+            } else {
+                if (oldStatus === 'Faturada') {
+                    alert("Status alterado. Lançamento financeiro removido.");
+                }
+                // If it wasn't Faturada, we quietly ensured it's gone (cleanup).
+            }
+        }
+
+        // 3. Update local state
+        setMedicoes(medicoes.map(m => m.id === id ? { ...m, status: newStatus as any } : m));
+        setFilteredMedicoes(filteredMedicoes.map(m => m.id === id ? { ...m, status: newStatus as any } : m));
     };
 
     const handleSave = async (medicao: Omit<Medicao, 'id'> & { id?: string }) => {
@@ -175,39 +306,95 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
                 created_by: user.id
             };
 
-            console.log("Saving Measurement Payload:", payload);
+            console.log('Payload being sent:', payload);
 
             if (medicao.id) {
-                // Edit - Remove created_by to avoid overwriting original creator, and status if not provided
+                // Edit - Remove created_by to avoid overwriting original creator. 
+                // Status is optional in edit if not changed.
                 delete payload.created_by;
-
-                // Don't overwrite status if it's not in the edit payload (modal doesn't return it)
                 if (!medicao.status) {
                     delete payload.status;
                 }
 
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from('project_measurements')
                     .update(payload)
-                    .eq('id', medicao.id);
+                    .eq('id', medicao.id)
+                    .select();
 
                 if (error) {
-                    console.error("Supabase Update Error:", error);
+                    console.error('Supabase Error (Update):', error);
                     alert('Erro ao atualizar medição: ' + error.message);
                 } else {
+                    console.log('Update Success:', data);
+
+                    // Logic update: If edited to be Faturada, ensure finance record exists.
+                    // However, editing status is mostly done via the dropdown in the table. 
+                    // If the modal allows status edit, we should ideally handle it here too.
+                    // For now, we assume status changes are primary in the table, but let's be safe:
+                    if (payload.status === 'Faturada' && data && data[0]) {
+                        // Reuse logic or duplicate simple insert/upsert
+                        // Since this is edit, let's just trigger a status check or simply
+                        // rely on the user changing status via dropdown later if getting complex.
+                        // But for correctness:
+                        const measurementId = data[0].id;
+                        const revenuePayload = {
+                            project_id: projectId,
+                            description: `Medição Faturada: ${payload.item_name}`,
+                            type: 'Receita',
+                            amount: payload.total_price,
+                            date: payload.measurement_date,
+                            measurement_id: measurementId
+                        };
+                        // Check/Update logic
+                        const { data: existing } = await supabase.from('financial_records').select('id').eq('measurement_id', measurementId);
+                        if (existing && existing.length > 0) {
+                            await supabase.from('financial_records').update(revenuePayload).eq('measurement_id', measurementId);
+                        } else {
+                            await supabase.from('financial_records').insert([revenuePayload]);
+                        }
+                    } else if (payload.status && payload.status !== 'Faturada' && data && data[0]) {
+                        // Ensure removal if changed away from Faturada in Edit
+                        await supabase.from('financial_records').delete().eq('measurement_id', data[0].id);
+                    }
+
                     fetchMedicoes();
                     setIsModalOpen(false);
                 }
             } else {
                 // Insert
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from('project_measurements')
-                    .insert([payload]);
+                    .insert([payload])
+                    .select();
+
+                console.log('Insert Result - Data:', data);
 
                 if (error) {
-                    console.error("Supabase Insert Error:", error);
+                    console.error('Supabase Error (Insert):', error);
                     alert('Erro ao salvar medição: ' + error.message);
                 } else {
+                    // NEW: If created as 'Faturada', create financial record
+                    if (payload.status === 'Faturada' && data && data.length > 0) {
+                        const newMeasurementId = data[0].id;
+                        const revenuePayload = {
+                            project_id: projectId,
+                            description: `Medição Faturada: ${payload.item_name}`,
+                            type: 'Receita',
+                            amount: payload.total_price,
+                            date: payload.measurement_date,
+                            measurement_id: newMeasurementId
+                        };
+
+                        const { error: finError } = await supabase
+                            .from('financial_records')
+                            .insert([revenuePayload]);
+
+                        if (finError) {
+                            console.error("Error creating financial record for new measurement:", finError);
+                        }
+                    }
+
                     fetchMedicoes();
                     setIsModalOpen(false);
                 }
@@ -365,22 +552,28 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
                         status: statusRaw ? String(statusRaw).trim() : 'Planejada',
                         created_by: user.id
                     });
+                } else if (!project.id) {
+                    console.error(`Error: Project ID not found for project: ${projectNameRaw}`);
+                    alert(`Erro na importação: O projeto '${projectNameRaw}' foi encontrado, mas não possui um ID válido no sistema. Esta linha será ignorada.`);
+                    skippedCount++;
                 } else {
-                    console.warn("Invalid row data skipped:", row);
+                    console.warn("Invalid row data skipped (Code 2):", row);
                     skippedCount++;
                 }
             }
 
             if (formattedRows.length > 0) {
                 setLoading(true);
-                const { error } = await supabase
+                // Added .select() as per standard practice, though for batch it returns all
+                const { data, error } = await supabase
                     .from('project_measurements')
-                    .insert(formattedRows);
+                    .insert(formattedRows)
+                    .select();
 
                 setLoading(false);
 
                 if (error) {
-                    console.error('Batch Insert error:', error);
+                    console.error('Supabase Error (Import):', error);
                     alert('Erro ao salvar medições importadas: ' + error.message);
                 } else {
                     const msg = `${formattedRows.length} medições importadas com sucesso!`;
@@ -432,6 +625,18 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
                 {/* Filters Section */}
                 <div className="bg-white p-4 rounded-lg shadow-sm mb-6 flex flex-wrap gap-4 items-end">
                     <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1">Projeto</label>
+                        <select
+                            value={projectFilter}
+                            onChange={(e) => setProjectFilter(e.target.value)}
+                            className="bg-white border border-slate-300 text-slate-700 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-40 p-2.5">
+                            <option value="">Todos</option>
+                            {projectsList.map(proj => (
+                                <option key={proj.id} value={proj.id}>{proj.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">Status</label>
                         <select
                             value={statusFilter}
@@ -450,7 +655,7 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
                             onChange={(e) => setDeptFilter(e.target.value)}
                             className="bg-white border border-slate-300 text-slate-700 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-40 p-2.5">
                             <option value="">Todos</option>
-                            {departments.map(dept => (
+                            {availableDepartments.map(dept => (
                                 <option key={dept} value={dept}>{dept}</option>
                             ))}
                         </select>
@@ -474,11 +679,12 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
                         />
                     </div>
                     <div className="ml-auto flex items-center space-x-2">
-                        {(statusFilter || deptFilter || startDate || endDate) && (
+                        {(statusFilter || deptFilter || startDate || endDate || projectFilter) && (
                             <button
                                 onClick={() => {
                                     setStatusFilter('');
                                     setDeptFilter('');
+                                    setProjectFilter('');
                                     setStartDate('');
                                     setEndDate('');
                                 }}
@@ -493,7 +699,20 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
 
                 <div className="bg-white p-6 rounded-lg shadow-sm">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-bold text-slate-800">Medições de Projetos</h2>
+                        <div className="flex items-center space-x-4">
+                            <h2 className="text-xl font-bold text-slate-800">Medições de Projetos</h2>
+                            {selectedIds.length > 0 && (
+                                <div className="flex items-center space-x-2 bg-red-50 text-red-700 px-3 py-1 rounded-md border border-red-200 text-sm animate-in fade-in slide-in-from-top-1 duration-200">
+                                    <span className="font-semibold">{selectedIds.length} selecionados</span>
+                                    <button
+                                        onClick={handleBulkDelete}
+                                        className="text-red-700 hover:text-red-900 hover:underline font-bold ml-2"
+                                    >
+                                        Excluir Selecionados
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                         <div className="flex items-center space-x-2">
                             <input type="file" ref={fileInputRef} onChange={handleFileImport} className="hidden" accept=".csv, .xlsx" />
                             <button onClick={handleImportClick} className="flex items-center space-x-2 px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50 text-sm">
@@ -518,6 +737,14 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-slate-50 border-b border-slate-200">
                                     <tr>
+                                        <th className="p-3 w-10">
+                                            <input
+                                                type="checkbox"
+                                                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                onChange={handleSelectAll}
+                                                checked={filteredMedicoes.length > 0 && selectedIds.length === filteredMedicoes.length}
+                                            />
+                                        </th>
                                         <th className="p-3 font-semibold text-slate-500 uppercase tracking-wider">Projeto</th>
                                         <th className="p-3 font-semibold text-slate-500 uppercase tracking-wider">Item Medido</th>
                                         <th className="p-3 font-semibold text-slate-500 uppercase tracking-wider">Qtd.</th>
@@ -527,13 +754,20 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
                                         <th className="p-3 font-semibold text-slate-500 uppercase tracking-wider">Data</th>
                                         <th className="p-3 font-semibold text-slate-500 uppercase tracking-wider">Depto</th>
                                         <th className="p-3 font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                                        <th className="p-3 font-semibold text-slate-500 uppercase tracking-wider">Cadastrado por</th>
                                         <th className="p-3 font-semibold text-slate-500 uppercase tracking-wider">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200">
                                     {filteredMedicoes.length > 0 ? filteredMedicoes.map((medicao) => (
-                                        <tr key={medicao.id} className="hover:bg-slate-50">
+                                        <tr key={medicao.id} className={`hover:bg-slate-50 ${selectedIds.includes(medicao.id) ? 'bg-blue-50' : ''}`}>
+                                            <td className="p-3">
+                                                <input
+                                                    type="checkbox"
+                                                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                    checked={selectedIds.includes(medicao.id)}
+                                                    onChange={() => handleSelectRow(medicao.id)}
+                                                />
+                                            </td>
                                             <td className="p-3 text-slate-700 font-medium">{medicao.projeto}</td>
                                             <td className="p-3 text-slate-700">{medicao.item}</td>
                                             <td className="p-3 text-slate-700">{medicao.qtd}</td>
@@ -556,9 +790,6 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
                                                     <option value="Faturada">Faturada</option>
                                                 </select>
                                             </td>
-                                            <td className="p-3 text-slate-500 text-xs">
-                                                {medicao.createdByUsername || '-'}
-                                            </td>
                                             <td className="p-3">
                                                 <div className="flex items-center space-x-3">
                                                     <button onClick={() => handleOpenEditModal(medicao)} className="text-slate-500 hover:text-blue-600" title="Editar"><PencilIcon className="w-4 h-4" /></button>
@@ -568,7 +799,7 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
                                         </tr>
                                     )) : (
                                         <tr>
-                                            <td colSpan={11} className="p-8 text-center text-slate-500">
+                                            <td colSpan={12} className="p-8 text-center text-slate-500">
                                                 {medicoes.length === 0 ? "Nenhuma medição encontrada." : "Nenhuma medição corresponde aos filtros."}
                                             </td>
                                         </tr>

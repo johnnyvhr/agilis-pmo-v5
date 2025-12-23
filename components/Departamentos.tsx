@@ -17,7 +17,8 @@ const Departamentos: React.FC<DepartamentosProps> = ({ }) => {
   // Editing State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-
+  // Bulk Selection
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const fetchDepartments = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -110,6 +111,39 @@ const Departamentos: React.FC<DepartamentosProps> = ({ }) => {
     }
   };
 
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(localDepartments.map(d => d.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+
+    if (window.confirm(`Tem certeza que deseja excluir ${selectedIds.length} departamentos?`)) {
+      const { error } = await supabase
+        .from('departments')
+        .delete()
+        .in('id', selectedIds);
+
+      if (error) {
+        alert('Erro ao excluir departamentos: ' + error.message);
+      } else {
+        fetchDepartments();
+        setSelectedIds([]);
+        alert(`${selectedIds.length} departamentos excluídos com sucesso!`);
+      }
+    }
+  };
+
   return (
     <div className="p-8 bg-slate-100">
       <h1 className="text-3xl font-bold text-slate-800 mb-6">Gestão de Departamentos</h1>
@@ -132,51 +166,99 @@ const Departamentos: React.FC<DepartamentosProps> = ({ }) => {
       </div>
 
       <div className="bg-white p-6 rounded-lg shadow-sm">
-        <h2 className="text-xl font-bold text-slate-800 mb-4">Departamentos Cadastrados</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-slate-800">Departamentos Cadastrados</h2>
+          {selectedIds.length > 0 && (
+            <div className="flex items-center space-x-2 bg-red-50 text-red-700 px-3 py-1 rounded-md border border-red-200 text-sm animate-in fade-in slide-in-from-top-1 duration-200">
+              <span className="font-semibold">{selectedIds.length} selecionados</span>
+              <button
+                onClick={handleBulkDelete}
+                className="text-red-700 hover:text-red-900 hover:underline font-bold ml-2"
+              >
+                Excluir Selecionados
+              </button>
+            </div>
+          )}
+        </div>
+
         {loading ? (
           <p>Carregando...</p>
         ) : (
-          <ul className="divide-y divide-slate-200">
-            {localDepartments.map((dep) => (
-              <li key={dep.id} className="py-3 flex justify-between items-center group">
-                {editingId === dep.id ? (
-                  <div className="flex-grow flex items-center space-x-2">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="p-3 w-10">
                     <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="flex-grow px-2 py-1 border border-blue-400 rounded-md focus:outline-none"
+                      type="checkbox"
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      onChange={handleSelectAll}
+                      checked={localDepartments.length > 0 && selectedIds.length === localDepartments.length}
                     />
-                    <button onClick={() => saveEditing(dep.id)} className="text-green-600 hover:text-green-800 font-medium text-sm">Salvar</button>
-                    <button onClick={cancelEditing} className="text-slate-500 hover:text-slate-700 font-medium text-sm">Cancelar</button>
-                  </div>
-                ) : (
-                  <>
-                    <span className="text-slate-700 font-medium">{dep.name}</span>
-                    <div className="flex items-center space-x-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => startEditing(dep.id, dep.name)}
-                        className="text-blue-500 hover:text-blue-700"
-                        aria-label={`Editar ${dep.name}`}
-                      >
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteDepartment(dep.id, dep.name)}
-                        className="text-red-500 hover:text-red-700"
-                        aria-label={`Remover ${dep.name}`}
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </>
+                  </th>
+                  <th className="p-3 font-semibold text-slate-500 uppercase tracking-wider">Nome do Departamento</th>
+                  <th className="p-3 font-semibold text-slate-500 uppercase tracking-wider text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {localDepartments.map((dep) => (
+                  <tr key={dep.id} className={`hover:bg-slate-50 ${selectedIds.includes(dep.id) ? 'bg-blue-50' : ''}`}>
+                    <td className="p-3">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        checked={selectedIds.includes(dep.id)}
+                        onChange={() => handleSelectRow(dep.id)}
+                      />
+                    </td>
+                    <td className="p-3">
+                      {editingId === dep.id ? (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="flex-grow px-2 py-1 border border-blue-400 rounded-md focus:outline-none"
+                          />
+                          <button onClick={() => saveEditing(dep.id)} className="text-green-600 hover:text-green-800 font-medium text-xs">Salvar</button>
+                          <button onClick={cancelEditing} className="text-slate-500 hover:text-slate-700 font-medium text-xs">Cancelar</button>
+                        </div>
+                      ) : (
+                        <span className="text-slate-700 font-medium">{dep.name}</span>
+                      )}
+                    </td>
+                    <td className="p-3 text-right">
+                      {!editingId && (
+                        <div className="flex items-center justify-end space-x-3">
+                          <button
+                            onClick={() => startEditing(dep.id, dep.name)}
+                            className="text-blue-500 hover:text-blue-700"
+                            aria-label={`Editar ${dep.name}`}
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDepartment(dep.id, dep.name)}
+                            className="text-red-500 hover:text-red-700"
+                            aria-label={`Remover ${dep.name}`}
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {localDepartments.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="p-8 text-center text-slate-500 italic">
+                      Nenhum departamento cadastrado.
+                    </td>
+                  </tr>
                 )}
-              </li>
-            ))}
-            {localDepartments.length === 0 && (
-              <li className="py-3 text-slate-500 italic">Nenhum departamento cadastrado.</li>
-            )}
-          </ul>
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

@@ -8,6 +8,7 @@ import { EyeIcon, FilterIcon, ImportIcon, ExportIcon, PlusIcon, PencilIcon, Tras
 import GanttChart, { ViewMode } from './GanttChart';
 import TaskDuplicateModal, { DuplicateConfig } from './TaskDuplicateModal';
 import TaskImportModal from './TaskImportModal';
+import { supabase } from '../lib/supabaseClient';
 
 interface ProjectCronogramaProps {
     onAddTask: () => void;
@@ -47,6 +48,9 @@ const ProjectCronograma: React.FC<ProjectCronogramaProps> = ({ onAddTask, onEdit
 
     // Import State
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+    // Bulk Selection
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
     // Intelligent Scale Prioritization (Auto-Fit)
     useEffect(() => {
@@ -259,6 +263,39 @@ const ProjectCronograma: React.FC<ProjectCronogramaProps> = ({ onAddTask, onEdit
     };
 
 
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedIds(filteredTasks.map(t => t.id));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectRow = (id: number) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+        );
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0) return;
+
+        if (window.confirm(`Tem certeza que deseja excluir ${selectedIds.length} tarefas selecionadas?`)) {
+            const { error } = await supabase
+                .from('tasks')
+                .delete()
+                .in('id', selectedIds);
+
+            if (error) {
+                alert('Erro ao excluir tarefas: ' + error.message);
+            } else {
+                alert(`${selectedIds.length} tarefas excluídas com sucesso. A página será recarregada.`);
+                setSelectedIds([]);
+                window.location.reload(); // Refresh to update context
+            }
+        }
+    };
+
     if (!project) {
         return (
             <div className="p-8 bg-slate-100">
@@ -374,10 +411,34 @@ const ProjectCronograma: React.FC<ProjectCronogramaProps> = ({ onAddTask, onEdit
                         </button>
                     </div>
                 </div>
+
+
+                {
+                    selectedIds.length > 0 && (
+                        <div className="flex items-center space-x-2 bg-red-50 text-red-700 px-3 py-1 rounded-md border border-red-200 text-sm mb-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                            <span className="font-semibold">{selectedIds.length} selecionados</span>
+                            <button
+                                onClick={handleBulkDelete}
+                                className="text-red-700 hover:text-red-900 hover:underline font-bold ml-2"
+                            >
+                                Excluir Selecionados
+                            </button>
+                        </div>
+                    )
+                }
+
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
+                                <th className="p-3 w-10">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                        onChange={handleSelectAll}
+                                        checked={filteredTasks.length > 0 && selectedIds.length === filteredTasks.length}
+                                    />
+                                </th>
                                 {['FASE/GRUPO', 'ATIVIDADE/MARCO', 'RESPONSÁVEL', 'DEPARTAMENTO', 'INÍCIO PREVISTO', 'TÉRMINO PREVISTO', 'DURAÇÃO PREV. (DIA)', '% CONCLUÍDO', 'INÍCIO REAL', 'TÉRMINO REAL', 'DURAÇÃO REAL (DIA)', 'STATUS', 'AÇÕES'].map(header => (
                                     <th key={header} className="p-3 font-semibold text-slate-500 uppercase tracking-wider">{header}</th>
                                 ))}
@@ -385,7 +446,15 @@ const ProjectCronograma: React.FC<ProjectCronogramaProps> = ({ onAddTask, onEdit
                         </thead>
                         <tbody className="divide-y divide-slate-200">
                             {filteredTasks.length > 0 ? filteredTasks.map(task => (
-                                <tr key={task.id}>
+                                <tr key={task.id} className={`hover:bg-slate-50 ${selectedIds.includes(task.id) ? 'bg-blue-50' : ''}`}>
+                                    <td className="p-3">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                            checked={selectedIds.includes(task.id)}
+                                            onChange={() => handleSelectRow(task.id)}
+                                        />
+                                    </td>
                                     <td className="p-3">{task.group}</td>
                                     <td className="p-3 font-medium text-slate-800">{task.name}</td>
                                     <td className="p-3">{task.responsible}</td>
@@ -417,10 +486,10 @@ const ProjectCronograma: React.FC<ProjectCronogramaProps> = ({ onAddTask, onEdit
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </div >
 
             {/* Gantt Chart */}
-            <div className="bg-white p-6 rounded-lg shadow-sm">
+            < div className="bg-white p-6 rounded-lg shadow-sm" >
                 <div className="flex flex-col md:flex-row justify-between items-center mb-4">
                     <h2 className="text-xl font-bold text-slate-800">Gráfico de Gantt - {project.name}</h2>
                     <div className="flex space-x-2 mt-2 md:mt-0">
@@ -462,7 +531,7 @@ const ProjectCronograma: React.FC<ProjectCronogramaProps> = ({ onAddTask, onEdit
                         <p className="text-center p-6 text-slate-500">Nenhuma tarefa para exibir no Gantt.</p>
                     )}
                 </div>
-            </div>
+            </div >
 
             <TaskDuplicateModal
                 isOpen={isDuplicateModalOpen}
@@ -479,7 +548,7 @@ const ProjectCronograma: React.FC<ProjectCronogramaProps> = ({ onAddTask, onEdit
                 onImport={handleImportTasks}
                 projectName={project.name}
             />
-        </div>
+        </div >
     );
 };
 

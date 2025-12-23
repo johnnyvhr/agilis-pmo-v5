@@ -27,6 +27,7 @@ const ProjectFinanceiro: React.FC<ProjectFinanceiroProps> = ({ project }) => {
   const [date, setDate] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Fetch entries from Supabase
   const fetchFinancialRecords = async () => {
@@ -144,6 +145,41 @@ const ProjectFinanceiro: React.FC<ProjectFinanceiroProps> = ({ project }) => {
     XLSX.writeFile(workbook, fileName);
   };
 
+
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(entries.map(e => e.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+
+    if (window.confirm(`Tem certeza que deseja excluir ${selectedIds.length} lançamentos financeiros?`)) {
+      const { error } = await supabase
+        .from('financial_records')
+        .delete()
+        .in('id', selectedIds);
+
+      if (error) {
+        alert('Erro ao excluir lançamentos: ' + error.message);
+      } else {
+        alert(`${selectedIds.length} lançamentos excluídos com sucesso.`);
+        setSelectedIds([]);
+        fetchFinancialRecords();
+      }
+    }
+  };
+
   const handleImport = async (importedEntries: Partial<FinancialEntry>[]) => {
     // Prepare payloads for bulk insert
     const payloads = importedEntries.map(e => ({
@@ -216,7 +252,20 @@ const ProjectFinanceiro: React.FC<ProjectFinanceiroProps> = ({ project }) => {
         </form>
 
         <div className="flex justify-between items-center mb-4 border-t pt-4">
-          <h2 className="text-xl font-bold text-slate-800">Histórico de Lançamentos</h2>
+          <div className="flex items-center space-x-4">
+            <h2 className="text-xl font-bold text-slate-800">Histórico de Lançamentos</h2>
+            {selectedIds.length > 0 && (
+              <div className="flex items-center space-x-2 bg-red-50 text-red-700 px-3 py-1 rounded-md border border-red-200 text-sm animate-in fade-in slide-in-from-top-1 duration-200">
+                <span className="font-semibold">{selectedIds.length} selecionados</span>
+                <button
+                  onClick={handleBulkDelete}
+                  className="text-red-700 hover:text-red-900 hover:underline font-bold ml-2"
+                >
+                  Excluir Selecionados
+                </button>
+              </div>
+            )}
+          </div>
           <div className="flex items-center space-x-2">
             <button onClick={() => setIsImportModalOpen(true)} className="flex items-center space-x-2 px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50 text-sm">
               <ImportIcon className="w-4 h-4" />
@@ -234,6 +283,14 @@ const ProjectFinanceiro: React.FC<ProjectFinanceiroProps> = ({ project }) => {
             {/* Table */}
             <thead className="bg-slate-50">
               <tr>
+                <th className="p-3 w-10">
+                  <input
+                    type="checkbox"
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    onChange={handleSelectAll}
+                    checked={entries.length > 0 && selectedIds.length === entries.length}
+                  />
+                </th>
                 <th className="p-3 font-semibold text-slate-500">Descrição</th>
                 <th className="p-3 font-semibold text-slate-500">Tipo</th>
                 <th className="p-3 font-semibold text-slate-500">Valor</th>
@@ -243,7 +300,15 @@ const ProjectFinanceiro: React.FC<ProjectFinanceiroProps> = ({ project }) => {
             </thead>
             <tbody>
               {entries.map(entry => (
-                <tr key={entry.id} className="border-b">
+                <tr key={entry.id} className={`border-b ${selectedIds.includes(entry.id) ? 'bg-blue-50' : ''}`}>
+                  <td className="p-3">
+                    <input
+                      type="checkbox"
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      checked={selectedIds.includes(entry.id)}
+                      onChange={() => handleSelectRow(entry.id)}
+                    />
+                  </td>
                   <td className="p-3">
                     {entry.description}
                     {entry.measurement_id && <span className="ml-2 text-xs text-blue-500 bg-blue-50 px-1 rounded">Vinculado</span>}
@@ -262,7 +327,7 @@ const ProjectFinanceiro: React.FC<ProjectFinanceiroProps> = ({ project }) => {
               ))}
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-4 text-center text-slate-500">Nenhum lançamento registrado.</td>
+                  <td colSpan={6} className="p-4 text-center text-slate-500">Nenhum lançamento registrado.</td>
                 </tr>
               )}
             </tbody>
