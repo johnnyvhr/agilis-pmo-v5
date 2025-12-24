@@ -11,10 +11,10 @@ interface GestaoEquipesProps {
   onEditTeam: (team: Team) => void;
 }
 
-const GestaoEquipes: React.FC<GestaoEquipesProps> = ({ teams, users, onAddTeam, onEditTeam }) => {
+const GestaoEquipes: React.FC<GestaoEquipesProps> = ({ teams = [], users, onAddTeam, onEditTeam }) => {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-  const findUserById = (id: number) => users.find(u => u.id === id);
+  const findUserById = (id: number) => users?.find(u => u.id === id);
 
   const getStatusColor = (status: TeamStatus) => {
     switch (status) {
@@ -38,7 +38,7 @@ const GestaoEquipes: React.FC<GestaoEquipesProps> = ({ teams, users, onAddTeam, 
   };
 
   const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
+    if (!selectedIds || selectedIds.length === 0) return;
 
     if (window.confirm(`Tem certeza que deseja excluir ${selectedIds.length} equipes?`)) {
       const { error } = await supabase
@@ -64,7 +64,7 @@ const GestaoEquipes: React.FC<GestaoEquipesProps> = ({ teams, users, onAddTeam, 
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center space-x-4">
             <h2 className="text-xl font-bold text-slate-800">Equipes da Organização</h2>
-            {selectedIds.length > 0 && (
+            {selectedIds?.length > 0 && (
               <div className="flex items-center space-x-2 bg-red-50 text-red-700 px-3 py-1 rounded-md border border-red-200 text-sm animate-in fade-in slide-in-from-top-1 duration-200">
                 <span className="font-semibold">{selectedIds.length} selecionados</span>
                 <button
@@ -91,7 +91,7 @@ const GestaoEquipes: React.FC<GestaoEquipesProps> = ({ teams, users, onAddTeam, 
                     type="checkbox"
                     className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                     onChange={handleSelectAll}
-                    checked={teams.length > 0 && selectedIds.length === teams.length}
+                    checked={teams?.length > 0 && selectedIds?.length === teams.length}
                   />
                 </th>
                 <th className="p-3 font-semibold text-slate-500 uppercase tracking-wider">Nome da Equipe</th>
@@ -102,13 +102,13 @@ const GestaoEquipes: React.FC<GestaoEquipesProps> = ({ teams, users, onAddTeam, 
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {teams.length > 0 ? teams.map(team => (
-                <tr key={team.id} className={`hover:bg-slate-50 ${selectedIds.includes(team.id) ? 'bg-blue-50' : ''}`}>
+              {teams?.length > 0 ? teams.map(team => (
+                <tr key={team.id} className={`hover:bg-slate-50 ${selectedIds?.includes(team.id) ? 'bg-blue-50' : ''}`}>
                   <td className="p-3">
                     <input
                       type="checkbox"
                       className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                      checked={selectedIds.includes(team.id)}
+                      checked={selectedIds?.includes(team.id) ?? false}
                       onChange={() => handleSelectRow(team.id)}
                     />
                   </td>
@@ -117,7 +117,7 @@ const GestaoEquipes: React.FC<GestaoEquipesProps> = ({ teams, users, onAddTeam, 
                     <div className="text-slate-500">{team.description}</div>
                   </td>
                   <td className="p-3">{findUserById(team.leaderId)?.name || 'N/A'}</td>
-                  <td className="p-3">{team.members.length}</td>
+                  <td className="p-3">{team.members?.length || 0}</td>
                   <td className="p-3">
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(team.status)}`}>
                       {team.status}

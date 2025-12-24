@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DashboardIcon, CalendarIcon, MeasurementIcon, DepartmentIcon, FinanceIcon, ChevronUpIcon, ChevronDownIcon, QualityIcon, RisksIcon, UsersIcon, SettingsIcon, BellIcon, LogOutIcon } from './icons';
 import { Project } from '../types';
+import ProjectCombobox from './ProjectCombobox';
 
 interface NavItemProps {
   icon: React.ReactNode;
@@ -56,9 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ companyName, projects, selectedProjec
   const location = useLocation();
   const currentPath = location.pathname;
 
-  const handleProjectSelection = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedProjectName = e.target.value;
-    const project = projects.find(p => p.name === selectedProjectName) || null;
+  const handleProjectSelect = (project: Project) => {
     setSelectedProject(project);
 
     // Determine where to navigate
@@ -141,20 +140,11 @@ const Sidebar: React.FC<SidebarProps> = ({ companyName, projects, selectedProjec
         <NavGroup title="Gestão do Projeto">
           <div>
             <label htmlFor="project-select" className="text-xs text-slate-400">SELECIONE O PROJETO:</label>
-            <div className="relative mt-1">
-              <select
-                id="project-select"
-                className="w-full bg-slate-700 border border-slate-600 rounded-md p-2 text-white appearance-none"
-                value={selectedProject?.name || ''}
-                onChange={handleProjectSelection}
-              >
-                <option value="" disabled>Selecione um Projeto</option>
-                {projects.map(project => (
-                  <option key={project.id} value={project.name}>{project.name}</option>
-                ))}
-              </select>
-              <ChevronDownIcon className="w-4 h-4 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+            <ProjectCombobox
+              projects={projects}
+              selectedProject={selectedProject}
+              onSelect={handleProjectSelect}
+            />
           </div>
           <button
             onClick={onNewProjectClick}

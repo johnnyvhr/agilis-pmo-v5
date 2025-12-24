@@ -13,12 +13,13 @@ interface ProjectFormModalProps {
 }
 
 const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ onClose, onSave, onDelete, projectToEdit, departments, teams }) => {
-    
+
     // FIX: Added explicit return type for better type safety.
     const getInitialFormData = (): Omit<Project, 'id'> => {
         if (projectToEdit) {
             return {
                 name: projectToEdit.name,
+                code: projectToEdit.code || '',
                 description: projectToEdit.description,
                 manager: projectToEdit.manager,
                 // FIX: Corrected typo from projectToetoEdit to projectToEdit.
@@ -33,6 +34,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ onClose, onSave, on
         }
         return {
             name: '',
+            code: '',
             description: '',
             manager: '',
             client: '',
@@ -56,7 +58,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ onClose, onSave, on
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
-    
+
     const handleTeamSelectionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const selectedIds = Array.from(e.target.selectedOptions, (option: HTMLOptionElement) => parseInt(option.value));
         setFormData(prev => ({ ...prev, associatedTeamIds: selectedIds }));
@@ -71,7 +73,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ onClose, onSave, on
             departmentBudgets: { ...prev.departmentBudgets, [department]: numericValue }
         }));
     };
-    
+
     const handleAdditiveChange = (index: number, value: string) => {
         const numericValue = parseFloat(value.replace(/[^0-9,.-]+/g, "").replace(",", ".")) || 0;
         const newAdditives = [...formData.contractAdditives];
@@ -80,7 +82,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ onClose, onSave, on
     };
 
     const handleAddAdditive = () => {
-        setFormData(prev => ({...prev, contractAdditives: [...prev.contractAdditives, 0]}));
+        setFormData(prev => ({ ...prev, contractAdditives: [...prev.contractAdditives, 0] }));
     };
 
     const handleRemoveAdditive = (index: number) => {
@@ -90,7 +92,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ onClose, onSave, on
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if(!formData.name){
+        if (!formData.name) {
             alert('O nome do projeto é obrigatório.');
             return;
         }
@@ -103,7 +105,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ onClose, onSave, on
             onDelete(projectToEdit.id);
         }
     };
-    
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-full overflow-y-auto">
@@ -112,17 +114,23 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ onClose, onSave, on
                     <button onClick={onClose} className="text-slate-500 hover:text-slate-800 text-2xl" aria-label="Fechar">&times;</button>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    
+
                     {/* Project Info */}
-                    <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-slate-700">Nome do Projeto *</label>
-                        <input type="text" id="name" name="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md" required />
+                    <div className="flex gap-4">
+                        <div className="w-1/5">
+                            <label htmlFor="code" className="block text-sm font-medium text-slate-700">Código/ID</label>
+                            <input type="text" id="code" name="code" value={formData.code || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md" placeholder="Ex: P-001" />
+                        </div>
+                        <div className="w-4/5">
+                            <label htmlFor="name" className="block text-sm font-medium text-slate-700">Nome do Projeto *</label>
+                            <input type="text" id="name" name="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md" required />
+                        </div>
                     </div>
                     <div>
                         <label htmlFor="description" className="block text-sm font-medium text-slate-700">Descrição</label>
                         <textarea id="description" name="description" value={formData.description} onChange={handleChange} rows={3} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md" />
                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label htmlFor="manager" className="block text-sm font-medium text-slate-700">Gerente do Projeto</label>
                             <input type="text" id="manager" name="manager" value={formData.manager} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md" />
@@ -143,7 +151,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ onClose, onSave, on
                             <label htmlFor="endDate" className="block text-sm font-medium text-slate-700">Data de Término</label>
                             <input type="date" id="endDate" name="endDate" value={formData.endDate} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md" />
                         </div>
-                         <div>
+                        <div>
                             <label htmlFor="status" className="block text-sm font-medium text-slate-700">Status</label>
                             <select id="status" name="status" value={formData.status} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md">
                                 {Object.values(ProjectStatus).map(status => (
@@ -170,24 +178,24 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ onClose, onSave, on
                         </select>
                         <p className="text-xs text-slate-500 mt-1">Segure Ctrl (ou Cmd em Mac) para selecionar múltiplas equipes.</p>
                     </div>
-                    
+
                     {/* Budgets */}
                     <div className="p-4 border border-slate-200 rounded-md">
                         <h3 className="text-blue-600 font-semibold mb-3">Orçamento por Departamento</h3>
                         <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                           {departments.map(dep => (
-                               <div key={dep} className="flex justify-between items-center">
-                                   <label htmlFor={`budget-${dep}`} className="text-sm text-slate-600 truncate pr-2" title={dep}>{dep}</label>
-                                   <input
+                            {departments.map(dep => (
+                                <div key={dep} className="flex justify-between items-center">
+                                    <label htmlFor={`budget-${dep}`} className="text-sm text-slate-600 truncate pr-2" title={dep}>{dep}</label>
+                                    <input
                                         type="text"
                                         id={`budget-${dep}`}
                                         value={(formData.departmentBudgets[dep] || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         onChange={(e) => handleBudgetChange(dep, e.target.value)}
                                         placeholder="R$ 0,00"
                                         className="w-32 px-2 py-1 text-right bg-white border border-slate-300 rounded-md"
-                                   />
-                               </div>
-                           ))}
+                                    />
+                                </div>
+                            ))}
                         </div>
                     </div>
 
@@ -205,7 +213,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ onClose, onSave, on
                                         className="flex-grow px-3 py-2 text-right bg-white border border-slate-300 rounded-md"
                                     />
                                     <button type="button" onClick={() => handleRemoveAdditive(index)} className="text-red-500 hover:text-red-700 p-1">
-                                        <TrashIcon className="w-4 h-4"/>
+                                        <TrashIcon className="w-4 h-4" />
                                     </button>
                                 </div>
                             ))}
@@ -218,11 +226,11 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ onClose, onSave, on
                     {/* Actions */}
                     <div className="flex justify-between items-center pt-4">
                         <div>
-                        {projectToEdit && (
-                            <button type="button" onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium">
-                                Excluir Projeto
-                            </button>
-                        )}
+                            {projectToEdit && (
+                                <button type="button" onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium">
+                                    Excluir Projeto
+                                </button>
+                            )}
                         </div>
                         <div className="flex space-x-4">
                             <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300 font-medium">

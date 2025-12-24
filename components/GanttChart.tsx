@@ -1,10 +1,9 @@
-
 import React, { useRef, useLayoutEffect, useMemo, useState, useEffect } from 'react';
 
 interface GanttProject {
     name: string;
-    startDate: Date;
-    endDate: Date;
+    startDate: Date | string;
+    endDate: Date | string;
     status?: string;
 }
 
@@ -12,76 +11,111 @@ export type ViewMode = 'day' | 'week' | 'month' | 'quarter';
 
 interface GanttChartProps {
     projects: GanttProject[];
-    startDate: Date;
-    endDate: Date;
+    startDate: Date | string;
+    endDate: Date | string;
     viewMode?: ViewMode;
 }
 
 const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, viewMode = 'month' }) => {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    
-    // --- Resizable Sidebar Logic ---
-    const [sidebarWidth, setSidebarWidth] = useState<number>(256); // Default 256px (w-64)
+    const [sidebarWidth] = useState<number>(300); // Fixed 300px as requested
 
-    useEffect(() => {
-        const savedWidth = localStorage.getItem('gantt_sidebar_width');
-        if (savedWidth) {
-            setSidebarWidth(parseInt(savedWidth, 10));
-        }
-    }, []);
-
-    const startResizing = (mouseDownEvent: React.MouseEvent) => {
-        mouseDownEvent.preventDefault();
-        const startX = mouseDownEvent.clientX;
-        const startWidth = sidebarWidth;
-
-        const onMouseMove = (mouseMoveEvent: MouseEvent) => {
-            const newWidth = startWidth + (mouseMoveEvent.clientX - startX);
-            // Limits: Min 150px, Max 600px
-            if (newWidth >= 150 && newWidth <= 600) {
-                setSidebarWidth(newWidth);
+    // Helper: Normalize dates to start of day, handling strings and DD/MM/YYYY
+    const normalizeDate = (date: Date | string) => {
+        let d: Date;
+        if (date instanceof Date) {
+            d = new Date(date);
+        } else {
+            // Try Parsing
+            if (typeof date === 'string' && date.includes('/')) {
+                const parts = date.split('/');
+                if (parts.length === 3) {
+                    const day = parseInt(parts[0], 10);
+                    const month = parseInt(parts[1], 10) - 1;
+                    const year = parseInt(parts[2], 10);
+                    d = new Date(year, month, day);
+                } else {
+                    d = new Date(date);
+                }
+            } else {
+                d = new Date(date);
             }
-        };
+        }
 
-        const onMouseUp = () => {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-            document.body.style.cursor = 'default';
-        };
+        if (isNaN(d.getTime())) {
+            d = new Date(); // Fallback to today if invalid
+        }
 
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-        document.body.style.cursor = 'col-resize';
-    };
-
-    useEffect(() => {
-        localStorage.setItem('gantt_sidebar_width', sidebarWidth.toString());
-    }, [sidebarWidth]);
-    // -------------------------------
-
-    // Helper: Normalize dates to start of day
-    const normalizeDate = (date: Date) => {
-        const d = new Date(date);
         d.setHours(0, 0, 0, 0);
         return d;
     };
 
-    const chartStart = normalizeDate(startDate);
-    const chartEnd = normalizeDate(endDate);
+    // Determine Chart Boundaries (Floored/Ceiled for cleaner headers)
+    const { chartStart, chartEnd } = useMemo(() => {
+        let start = normalizeDate(startDate);
+        let end = normalizeDate(endDate);
+
+        // Always floor start to beginning of Month for clean Top Row headers (Month/Year)
+        // This ensures "December 2025" starts at the rendering edge
+        start.setDate(1);
+
+        // Pad end slightly
+        end.setMonth(end.getMonth() + 1);
+        end.setDate(0);
+
+        return { chartStart: start, chartEnd: end };
+    }, [startDate, endDate]);
+
 
     // Configuration based on ViewMode
     const config = useMemo(() => {
+        const ptBR = 'pt-BR';
         switch (viewMode) {
             case 'day':
-                return { columnWidth: 40, unit: 'day', step: 1, labelFormat: (d: Date) => d.getDate().toString() };
+                return {
+                    columnWidth: 60, // 60-80px request
+                    unit: 'day',
+                    step: 1,
+                    bottomLabel: (d: Date) => d.getDate().toString(),
+                    topUnit: 'month',
+                    topLabel: (d: Date) => d.toLocaleDateString(ptBR, { month: 'long', year: 'numeric' })
+                };
             case 'week':
-                return { columnWidth: 30, unit: 'day', step: 7, labelFormat: (d: Date) => `S${getWeekNumber(d)}` };
+                return {
+                    columnWidth: 250, // 250px request
+                    unit: 'day',
+                    step: 7,
+                    bottomLabel: (d: Date) => `Semana ${getWeekNumber(d)}`,
+                    topUnit: 'month',
+                    topLabel: (d: Date) => d.toLocaleDateString(ptBR, { month: 'long', year: 'numeric' })
+                };
             case 'month':
-                return { columnWidth: 60, unit: 'month', step: 1, labelFormat: (d: Date) => d.toLocaleDateString('pt-BR', { month: 'short' }) };
+                return {
+                    columnWidth: 300, // 300px request
+                    unit: 'month',
+                    step: 1,
+                    bottomLabel: (d: Date) => d.toLocaleDateString(ptBR, { month: 'long' }),
+                    topUnit: 'year',
+                    topLabel: (d: Date) => d.getFullYear().toString()
+                };
             case 'quarter':
-                return { columnWidth: 80, unit: 'month', step: 3, labelFormat: (d: Date) => `Q${Math.floor(d.getMonth() / 3) + 1}` };
+                return {
+                    columnWidth: 200,
+                    unit: 'month',
+                    step: 3,
+                    bottomLabel: (d: Date) => `Q${Math.floor(d.getMonth() / 3) + 1}`,
+                    topUnit: 'year',
+                    topLabel: (d: Date) => d.getFullYear().toString()
+                };
             default:
-                return { columnWidth: 60, unit: 'month', step: 1, labelFormat: (d: Date) => d.toLocaleDateString('pt-BR', { month: 'short' }) };
+                return {
+                    columnWidth: 300,
+                    unit: 'month',
+                    step: 1,
+                    bottomLabel: (d: Date) => d.toLocaleDateString(ptBR, { month: 'long' }),
+                    topUnit: 'year',
+                    topLabel: (d: Date) => d.getFullYear().toString()
+                };
         }
     }, [viewMode]);
 
@@ -94,43 +128,30 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
         return Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
     }
 
-    // Helper: Calculate difference in appropriate units
-    const getDiff = (start: Date, end: Date, unit: string) => {
-        if (unit === 'month') {
-            return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
-        }
-        // days
-        return (end.getTime() - start.getTime()) / (1000 * 3600 * 24);
-    };
-
-    // Calculate chart dimensions
-    const totalUnits = Math.max(1, getDiff(chartStart, chartEnd, config.unit));
-    // We add a buffer to the width to ensure the last label/bar isn't cut off
-    const chartWidth = (totalUnits / (config.unit === 'day' && viewMode === 'week' ? 1 : 1)) * config.columnWidth + 200; 
-    
-    // Scale factor (pixels per millisecond or pixels per month index)
-    // To simplify: we will project everything to a linear pixel scale
-    const getPixelPosition = (date: Date) => {
+    // Scale factor and positioning
+    // We project everything to a linear pixel scale from chartStart
+    const getPixelPosition = (date: Date | string) => {
         const nDate = normalizeDate(date);
+
         if (config.unit === 'month') {
             const monthsDiff = (nDate.getFullYear() - chartStart.getFullYear()) * 12 + (nDate.getMonth() - chartStart.getMonth());
             // Add fractional month for accuracy
             const daysInMonth = new Date(nDate.getFullYear(), nDate.getMonth() + 1, 0).getDate();
-            const fraction = (nDate.getDate() - 1) / daysInMonth;
-            return (monthsDiff + fraction) * (config.columnWidth / config.step);
+            const fraction = Math.min(1, Math.max(0, (nDate.getDate() - 1) / daysInMonth));
+            return (monthsDiff + fraction) * (config.columnWidth / (config.step || 1));
         } else {
             // Days
-            const daysDiff = (nDate.getTime() - chartStart.getTime()) / (1000 * 3600 * 24);
+            // Ensure we handle time zones or DST by using pure math on timestamps (dates are heavily controlled)
+            const diffTime = nDate.getTime() - chartStart.getTime();
+            const diffDays = diffTime / (1000 * 3600 * 24);
             const factor = viewMode === 'week' ? config.columnWidth / 7 : config.columnWidth;
-            return daysDiff * factor;
+            return diffDays * factor;
         }
     };
 
-    // Scroll to Specific Date Logic
-    const scrollToDate = (date: Date) => {
+    const scrollToDate = (date: Date | string) => {
         if (scrollContainerRef.current) {
             const position = getPixelPosition(date);
-            // Scroll to the position minus a padding (e.g. 100px) so the bar starts a bit into the view
             scrollContainerRef.current.scrollTo({
                 left: Math.max(0, position - 100),
                 behavior: 'smooth'
@@ -138,17 +159,21 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
         }
     };
 
-    // Generate Headers
-    const headers = [];
+    // --- Header Generation ---
+
+    // Bottom Row Headers (The granular columns: Days, Weeks, Months, Quarters)
+    const bottomHeaders = [];
     let currentHeaderDate = new Date(chartStart);
-    
-    // Align start date for loop based on view mode
-    if (viewMode === 'month' || viewMode === 'quarter') {
-        currentHeaderDate.setDate(1);
-    }
+
+    // If Week mode, align start to Monday if needed? 
+    // Usually chartStart (1st of month) might not be Monday. 
+    // Visualization might look offset if we strictly step by 7 from 1st.
+    // However, simplicity first: The grid follows the steps from chartStart.
+    // If we want "Semana X" to align with actual weeks, the grid steps should align.
+    // For now, we iterate by step.
 
     while (currentHeaderDate <= chartEnd) {
-        headers.push(new Date(currentHeaderDate));
+        bottomHeaders.push(new Date(currentHeaderDate));
         if (config.unit === 'month') {
             currentHeaderDate.setMonth(currentHeaderDate.getMonth() + config.step);
         } else {
@@ -156,88 +181,131 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
         }
     }
 
-    // Auto-scroll to earliest project on mount or update
+    // Top Row Headers (Grouping: Months or Years)
+    const topHeaders = [];
+    let currentTopDate = new Date(chartStart);
+
+    // Iterate until end
+    while (currentTopDate <= chartEnd) {
+        const start = new Date(currentTopDate);
+        const next = new Date(start);
+
+        // Advance to next grouping
+        if (config.topUnit === 'month') {
+            next.setMonth(next.getMonth() + 1);
+            next.setDate(1); // Ensure 1st
+        } else { // year
+            next.setFullYear(next.getFullYear() + 1);
+            next.setMonth(0);
+            next.setDate(1);
+        }
+
+        topHeaders.push({
+            label: config.topLabel(start),
+            startPos: getPixelPosition(start),
+            width: getPixelPosition(next) - getPixelPosition(start)
+        });
+
+        currentTopDate = next;
+    }
+
+    // Calculate total layout width based on last bottom header
+    const lastHeader = bottomHeaders[bottomHeaders.length - 1];
+    const chartTotalWidth = Math.max(
+        getPixelPosition(lastHeader) + config.columnWidth + 100, // ample buffer
+        800 // Min width
+    );
+
+
+    // Auto-scroll to start (earliest date - buffer) on mount
     useLayoutEffect(() => {
-        if (scrollContainerRef.current && projects.length > 0) {
-            // Find earliest start date
-            const earliest = projects.reduce((min, p) => p.startDate < min ? p.startDate : min, projects[0].startDate);
-            const pixelPos = getPixelPosition(earliest);
-            
-            // Scroll to position minus some padding (e.g. 100px)
-            scrollContainerRef.current.scrollLeft = Math.max(0, pixelPos - 100);
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollLeft = 0;
         }
     }, [projects, viewMode, chartStart]);
 
     return (
-        <div className="w-full border border-slate-200 rounded-lg bg-white overflow-hidden shadow-sm flex flex-col">
-            {/* Main Container */}
+        <div className="w-full border border-slate-200 rounded-lg bg-white overflow-hidden shadow-sm flex flex-col min-h-[500px]">
             <div className="flex flex-grow overflow-hidden">
-                {/* Fixed Sidebar (Task Names) - Resizable */}
-                <div 
-                    className="flex-shrink-0 bg-white border-r border-slate-200 z-20 shadow-sm overflow-hidden flex flex-col relative group"
+                {/* Fixed 300px Sidebar */}
+                <div
+                    className="flex-shrink-0 bg-white border-r border-slate-200 z-20 shadow-sm overflow-hidden flex flex-col"
                     style={{ width: `${sidebarWidth}px` }}
                 >
-                    <div className="h-10 bg-slate-50 border-b border-slate-200 flex items-center px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">
+                    {/* Double Header Height to Match Chart */}
+                    <div className="h-20 bg-slate-50 border-b border-slate-200 flex items-center px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
                         Atividade / Projeto
                     </div>
-                    <div className="flex-grow overflow-y-hidden relative">
-                         {/* We mirror the height of the chart rows here */}
-                         <div style={{ marginTop: '0px' }}> {/* Placeholder for scroll sync if needed later */}
-                            {projects.map((project, index) => (
-                                <div 
-                                    key={index} 
-                                    className="h-10 border-b border-slate-100 flex items-center px-3 text-sm font-medium text-slate-700 truncate cursor-pointer hover:bg-slate-50 hover:text-blue-600 transition-colors" 
-                                    title={`Clique para focar em: ${project.name}`}
-                                    onClick={() => scrollToDate(project.startDate)}
-                                >
-                                    {project.name}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
 
-                    {/* Resizer Handle */}
-                    <div 
-                        className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-blue-400 opacity-0 hover:opacity-100 transition-opacity z-50"
-                        onMouseDown={startResizing}
-                    />
+                    <div className="flex-grow overflow-y-hidden relative py-2">
+                        {projects.map((project, index) => (
+                            <div
+                                key={index}
+                                className="h-10 border-b border-slate-100 flex items-center px-4 text-sm font-medium text-slate-700 truncate cursor-pointer hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                                title={`Clique para focar em: ${project.name}`}
+                                onClick={() => scrollToDate(project.startDate)}
+                            >
+                                {project.name}
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
-                {/* Scrollable Timeline Area */}
-                <div 
+                {/* Scrollable Timeline */}
+                <div
                     ref={scrollContainerRef}
                     className="flex-grow overflow-x-auto overflow-y-hidden relative bg-white"
                 >
-                    <div style={{ width: `${Math.max(chartWidth, 800)}px`, minWidth: '100%' }}>
-                        {/* Timeline Header */}
-                        <div className="h-10 bg-slate-50 border-b border-slate-200 flex relative">
-                            {headers.map((date, i) => {
-                                const left = getPixelPosition(date);
-                                return (
-                                    <div 
-                                        key={i} 
-                                        className="absolute top-0 bottom-0 flex items-center justify-center text-xs text-slate-500 border-r border-slate-200 px-1 truncate"
-                                        style={{ 
-                                            left: `${left}px`, 
-                                            width: `${config.columnWidth}px` 
+                    <div style={{ width: `${chartTotalWidth}px`, minWidth: '100%' }}>
+
+                        {/* Headers Container (Height 20 = 80px or h-20 in tailwind) */}
+                        <div className="h-20 bg-slate-50 border-b border-slate-200 relative">
+
+                            {/* Top Row: Groupings */}
+                            <div className="h-10 w-full relative border-b border-slate-200">
+                                {topHeaders.map((header, i) => (
+                                    <div
+                                        key={i}
+                                        className="absolute top-0 bottom-0 flex items-center pl-2 text-xs font-bold text-slate-600 border-r border-slate-200 truncate bg-slate-100/50"
+                                        style={{
+                                            left: `${header.startPos}px`,
+                                            width: `${header.width}px`
                                         }}
                                     >
-                                        {config.labelFormat(date)}
-                                        {viewMode === 'month' && <span className='text-[10px] ml-1 text-slate-400'>{date.getFullYear()}</span>}
+                                        {header.label}
                                     </div>
-                                );
-                            })}
-                        </div>
+                                ))}
+                            </div>
 
-                        {/* Timeline Grid & Bars */}
-                        <div className="relative">
-                            {/* Grid Lines */}
-                            <div className="absolute inset-0 pointer-events-none">
-                                {headers.map((date, i) => {
+                            {/* Bottom Row: Granular Units */}
+                            <div className="h-10 w-full relative">
+                                {bottomHeaders.map((date, i) => {
                                     const left = getPixelPosition(date);
                                     return (
-                                        <div 
-                                            key={i} 
+                                        <div
+                                            key={i}
+                                            className="absolute top-0 bottom-0 flex items-center justify-center text-xs text-slate-500 border-r border-slate-200 px-1 truncate"
+                                            style={{
+                                                left: `${left}px`,
+                                                width: `${config.columnWidth}px`
+                                            }}
+                                        >
+                                            {config.bottomLabel(date)}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Chart Area */}
+                        <div className="relative py-2">
+                            {/* Grid Lines (Vertical) */}
+                            <div className="absolute inset-0 pointer-events-none">
+                                {bottomHeaders.map((date, i) => {
+                                    const left = getPixelPosition(date);
+                                    return (
+                                        <div
+                                            key={i}
                                             className="absolute top-0 bottom-0 border-r border-slate-100"
                                             style={{ left: `${left}px`, width: `${config.columnWidth}px` }}
                                         />
@@ -245,31 +313,44 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
                                 })}
                             </div>
 
-                            {/* Project Rows & Bars */}
+                            {/* Bars */}
                             {projects.map((project, index) => {
                                 const startPos = getPixelPosition(project.startDate);
                                 const endPos = getPixelPosition(project.endDate);
                                 const width = Math.max(2, endPos - startPos);
-
                                 const barColor = project.status === 'Travado' ? 'bg-slate-700' : 'bg-blue-500';
 
                                 return (
-                                    <div key={index} className="h-10 border-b border-slate-100 relative w-full">
-                                        <div 
-                                            className={`absolute h-5 ${barColor} rounded-full top-2.5 shadow-sm cursor-pointer hover:opacity-80 transition-opacity group z-10`}
+                                    <div key={index} className="h-10 border-b border-slate-100 relative w-full group">
+                                        {/* Row Highlight on Hover */}
+                                        <div className="absolute inset-0 hover:bg-slate-50 transition-colors w-full" />
+
+                                        <div
+                                            className={`absolute h-6 ${barColor} rounded-md top-2 shadow-sm cursor-pointer hover:brightness-110 transition-all z-10 flex items-center px-2`}
                                             style={{
                                                 left: `${startPos}px`,
                                                 width: `${width}px`
                                             }}
                                             onClick={() => scrollToDate(project.startDate)}
                                         >
+                                            {/* Optional label inside bar if wide enough */}
+                                            {width > 100 && (
+                                                <span className="text-white text-[10px] truncate font-medium drop-shadow-md">
+                                                    {project.name}
+                                                </span>
+                                            )}
+
                                             {/* Tooltip */}
-                                            <div className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 bg-slate-800 text-white text-xs rounded py-1 px-2 mb-1 z-30 whitespace-nowrap shadow-lg">
-                                                <div className="font-bold mb-0.5">{project.name}</div>
-                                                <div>
+                                            <div className="hidden group-hover:block absolute bottom-full left-0 mb-2 bg-slate-800 text-white text-xs rounded py-1.5 px-3 z-30 shadow-xl w-max">
+                                                <div className="font-bold mb-1">{project.name}</div>
+                                                <div className="text-slate-300">
                                                     {project.startDate.toLocaleDateString('pt-BR')} - {project.endDate.toLocaleDateString('pt-BR')}
                                                 </div>
-                                                {project.status && <div className="text-[10px] uppercase opacity-75 mt-0.5">{project.status}</div>}
+                                                {project.status && (
+                                                    <div className="mt-1 inline-block px-1.5 py-0.5 rounded bg-white/20 text-[10px] uppercase tracking-wide">
+                                                        {project.status}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

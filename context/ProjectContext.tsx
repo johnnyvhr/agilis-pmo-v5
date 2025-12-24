@@ -201,7 +201,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
                         status: p.status,
                         departmentBudgets: {}, // Not in DB schema
                         contractAdditives: [], // Not in DB schema
-                        associatedTeamIds: p.associated_team_ids || []
+                        associatedTeamIds: p.associated_team_ids || [],
+                        code: p.code || null
                     }));
                     setProjects(loadedProjects);
                 }
@@ -316,7 +317,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             budget: 0, // Default or from project
             priority: 'Média',
             progress: 0,
-            associated_team_ids: project.associatedTeamIds
+            associated_team_ids: project.associatedTeamIds,
+            code: project.code || null
         };
 
         const { data, error } = await supabase
@@ -344,7 +346,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             start_date: updatedProject.startDate || null,
             end_date: updatedProject.endDate || null,
             manager_name: updatedProject.manager,
-            associated_team_ids: updatedProject.associatedTeamIds
+            associated_team_ids: updatedProject.associatedTeamIds,
+            code: updatedProject.code || null
         };
 
         const { error } = await supabase

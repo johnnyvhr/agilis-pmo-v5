@@ -10,10 +10,11 @@ export enum ProjectStatus {
 
 export interface Project {
   id: number;
+  code?: string; // New custom code/id field
   name: string;
   description: string;
   manager: string;
-  client: string;
+  client?: string;
   startDate: string;
   endDate: string;
   status: ProjectStatus;
@@ -104,7 +105,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 export interface User {
-  id: number;
+  id: number | string;
   name: string;
   email: string;
   role: UserRole;
@@ -112,17 +113,17 @@ export interface User {
 }
 
 export interface TeamMember {
-  userId: number;
+  userId: number | string;
   roleInTeam: string;
 }
 
 export type TeamStatus = 'Ativa' | 'Inativa';
 
 export interface Team {
-  id: number;
+  id: number; // Teams might still be numeric? Keeping as number is safer unless we know otherwise, but leaderId is referencing User.
   name: string;
   description: string;
-  leaderId: number;
+  leaderId: number | string;
   members: TeamMember[];
   status: TeamStatus;
 }
