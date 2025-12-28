@@ -14,9 +14,9 @@ interface NavItemProps {
 
 const NavItem: React.FC<NavItemProps> = ({ icon, label, active = false, onClick, disabled = false }) => {
   const baseClasses = 'flex items-center space-x-3 p-2 rounded-md w-full text-left';
-  const activeClasses = 'bg-blue-600 text-white';
-  const inactiveClasses = 'hover:bg-slate-700 text-slate-300';
-  const disabledClasses = 'text-slate-500 cursor-not-allowed';
+  const activeClasses = 'bg-blue-600 text-white shadow-md';
+  const inactiveClasses = 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800';
+  const disabledClasses = 'text-slate-400 dark:text-slate-600 cursor-not-allowed';
 
   return (
     <button onClick={onClick} className={`${baseClasses} ${active ? activeClasses : inactiveClasses} ${disabled ? disabledClasses : ''}`} disabled={disabled}>
@@ -34,8 +34,8 @@ interface NavGroupProps {
 const NavGroup: React.FC<NavGroupProps> = ({ title, children }) => (
   <div>
     <div className="flex justify-between items-center mb-2">
-      <h3 className="text-xs text-slate-400 uppercase font-bold">{title}</h3>
-      <ChevronUpIcon className="w-4 h-4 text-slate-400" />
+      <h3 className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold">{title}</h3>
+      <ChevronUpIcon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
     </div>
     <div className="space-y-1">
       {children}
@@ -77,26 +77,26 @@ const Sidebar: React.FC<SidebarProps> = ({ companyName, projects, selectedProjec
   };
 
   return (
-    <aside className="w-64 bg-slate-800 text-white p-4 flex flex-col">
+    <aside className="w-64 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4 flex flex-col border-r border-slate-200 dark:border-slate-800 transition-colors duration-200">
       <div>
         <div className="text-center py-2">
           <h1 className="text-2xl font-bold text-blue-400">Agilis PMO</h1>
         </div>
-        <div className="border-t border-slate-700 pt-4">
-          <label className="text-sm text-slate-400">Empresa:</label>
-          <h2 className="text-white font-semibold text-lg truncate mt-1" title={companyName}>
+        <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+          <label className="text-sm text-slate-500 dark:text-slate-400">Empresa:</label>
+          <h2 className="text-slate-800 dark:text-white font-semibold text-lg truncate mt-1" title={companyName}>
             {companyName}
           </h2>
           <button
             onClick={() => navigate('/settings')}
-            className="flex items-center space-x-3 p-2 mt-2 rounded-md w-full text-left text-slate-300 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex items-center space-x-3 p-2 mt-2 rounded-md w-full text-left text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <SettingsIcon className="w-5 h-5" />
             <span>Configurações</span>
           </button>
           <button
             onClick={() => navigate('/notifications')}
-            className={`flex items-center space-x-3 p-2 mt-2 rounded-md w-full text-left focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentPath === '/notifications' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
+            className={`flex items-center space-x-3 p-2 mt-2 rounded-md w-full text-left focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentPath === '/notifications' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
           >
             <BellIcon className="w-5 h-5" />
             <span>Notificações</span>
@@ -139,7 +139,7 @@ const Sidebar: React.FC<SidebarProps> = ({ companyName, projects, selectedProjec
 
         <NavGroup title="Gestão do Projeto">
           <div>
-            <label htmlFor="project-select" className="text-xs text-slate-400">SELECIONE O PROJETO:</label>
+            <label htmlFor="project-select" className="text-xs text-slate-500 dark:text-slate-400">SELECIONE O PROJETO:</label>
             <ProjectCombobox
               projects={projects}
               selectedProject={selectedProject}
@@ -197,10 +197,10 @@ const Sidebar: React.FC<SidebarProps> = ({ companyName, projects, selectedProjec
 
         </NavGroup>
       </nav>
-      <div className="border-t border-slate-700 pt-4">
+      <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
         <button
           onClick={onLogoutClick}
-          className="flex items-center space-x-3 p-2 rounded-md w-full text-left text-slate-300 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex items-center space-x-3 p-2 rounded-md w-full text-left text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <LogOutIcon className="w-5 h-5" />
           <span>Sair</span>

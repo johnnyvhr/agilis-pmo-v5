@@ -160,6 +160,11 @@ const ProjectImportModal: React.FC<ProjectImportModalProps> = ({ isOpen, onClose
             // Ensure defaults
             if (!project.status) project.status = ProjectStatus.EmPlanejamento;
 
+            // Map legacy statuses
+            if (project.status === 'Atrasado' || project.status === 'Em Dia') {
+                project.status = ProjectStatus.EmAndamento;
+            }
+
             // Map text status to Enum if needed (simple check)
             const validStatus = Object.values(ProjectStatus).includes(project.status);
             if (!validStatus) project.status = ProjectStatus.EmPlanejamento;

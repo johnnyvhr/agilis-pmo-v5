@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
-import { Project, Task, Risk, QualityCheck, User, Team, UserRole } from '../types';
+import { Project, Task, Risk, QualityCheck, User, Team, UserRole, ProjectStatus } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
 interface ProjectContextType {
@@ -198,7 +198,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
                         client: '', // Not in DB schema
                         startDate: p.start_date,
                         endDate: p.end_date,
-                        status: p.status,
+                        status: (p.status === 'Atrasado' || p.status === 'Em Dia') ? ProjectStatus.EmAndamento : p.status,
                         departmentBudgets: {}, // Not in DB schema
                         contractAdditives: [], // Not in DB schema
                         associatedTeamIds: p.associated_team_ids || [],

@@ -29,8 +29,6 @@ interface SettingsProps {
   onDeleteUser: (userId: number) => void;
   companyName: string;
   setCompanyName: (name: string) => void;
-  theme: 'light' | 'dark' | 'system';
-  setTheme: (theme: 'light' | 'dark' | 'system') => void;
 }
 
 interface SettingsCardProps {
@@ -59,7 +57,7 @@ const SettingsCard: React.FC<SettingsCardProps> = ({ icon, title, description, o
   );
 };
 
-const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, onAddUser, onEditUser, onDeleteUser, companyName, setCompanyName, theme, setTheme }) => {
+const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, onAddUser, onEditUser, onDeleteUser, companyName, setCompanyName }) => {
   const [currentView, setCurrentView] = useState('main');
 
   const renderMainSettings = () => (
@@ -163,7 +161,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, onAddU
       case 'notifications':
         return <Notificacoes onBack={() => setCurrentView('main')} />;
       case 'appearance':
-        return <Aparencia onBack={() => setCurrentView('main')} theme={theme} setTheme={setTheme} />;
+        return <Aparencia onBack={() => setCurrentView('main')} />;
       case 'main':
       default:
         return renderMainSettings();

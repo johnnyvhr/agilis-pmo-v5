@@ -9,12 +9,15 @@ if (!rootElement) {
 }
 
 import { ProjectProvider } from './context/ProjectContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <ProjectProvider>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </ProjectProvider>
   </React.StrictMode>
 );

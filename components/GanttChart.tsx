@@ -20,48 +20,39 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [sidebarWidth] = useState<number>(300); // Fixed 300px as requested
 
-    // Helper: Normalize dates to start of day, handling strings and DD/MM/YYYY
-    const normalizeDate = (date: Date | string) => {
-        let d: Date;
-        if (date instanceof Date) {
-            d = new Date(date);
-        } else {
-            // Try Parsing
-            if (typeof date === 'string' && date.includes('/')) {
-                const parts = date.split('/');
-                if (parts.length === 3) {
-                    const day = parseInt(parts[0], 10);
-                    const month = parseInt(parts[1], 10) - 1;
-                    const year = parseInt(parts[2], 10);
-                    d = new Date(year, month, day);
-                } else {
-                    d = new Date(date);
-                }
-            } else {
-                d = new Date(date);
+    // Helper: Manual Date Parsing (CRITICAL)
+    const parseBrDate = (dateString: Date | string) => {
+        if (!dateString) return new Date();
+
+        // Handle 'DD/MM/YYYY'
+        if (typeof dateString === 'string' && dateString.includes('/')) {
+            const parts = dateString.split('/');
+            if (parts.length === 3) {
+                const day = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10);
+                const year = parseInt(parts[2], 10);
+                return new Date(year, month - 1, day);
             }
         }
-
-        if (isNaN(d.getTime())) {
-            d = new Date(); // Fallback to today if invalid
-        }
-
-        d.setHours(0, 0, 0, 0);
-        return d;
+        return new Date(dateString);
     };
 
     // Determine Chart Boundaries (Floored/Ceiled for cleaner headers)
     const { chartStart, chartEnd } = useMemo(() => {
-        let start = normalizeDate(startDate);
-        let end = normalizeDate(endDate);
+        let start = parseBrDate(startDate);
+        let end = parseBrDate(endDate);
 
         // Always floor start to beginning of Month for clean Top Row headers (Month/Year)
         // This ensures "December 2025" starts at the rendering edge
         start.setDate(1);
+        start.setHours(0, 0, 0, 0);
 
         // Pad end slightly
         end.setMonth(end.getMonth() + 1);
         end.setDate(0);
+        end.setHours(0, 0, 0, 0);
+
+        console.log('CALCULATED START DATE:', start);
 
         return { chartStart: start, chartEnd: end };
     }, [startDate, endDate]);
@@ -131,7 +122,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
     // Scale factor and positioning
     // We project everything to a linear pixel scale from chartStart
     const getPixelPosition = (date: Date | string) => {
-        const nDate = normalizeDate(date);
+        const nDate = parseBrDate(date);
 
         if (config.unit === 'month') {
             const monthsDiff = (nDate.getFullYear() - chartStart.getFullYear()) * 12 + (nDate.getMonth() - chartStart.getMonth());
@@ -217,23 +208,28 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
     );
 
 
-    // Auto-scroll to start (earliest date - buffer) on mount
+    // Brute Force Scroll (DOM Manipulation)
     useLayoutEffect(() => {
-        if (scrollContainerRef.current) {
-            scrollContainerRef.current.scrollLeft = 0;
+        // Attempt to find the Gantt scroll container and reset it
+        // We use the Ref if available, or fallback to querySelector if for some reason Ref isn't enough (though Ref is better)
+        const container = scrollContainerRef.current || document.querySelector('div[style*="overflow-x"]');
+
+        if (container) {
+            console.log('Forcing scroll to 0');
+            container.scrollLeft = 0;
         }
-    }, [projects, viewMode, chartStart]);
+    }, [projects]);
 
     return (
-        <div className="w-full border border-slate-200 rounded-lg bg-white overflow-hidden shadow-sm flex flex-col min-h-[500px]">
+        <div className="w-full border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 overflow-hidden shadow-sm flex flex-col min-h-[500px]">
             <div className="flex flex-grow overflow-hidden">
                 {/* Fixed 300px Sidebar */}
                 <div
-                    className="flex-shrink-0 bg-white border-r border-slate-200 z-20 shadow-sm overflow-hidden flex flex-col"
+                    className="flex-shrink-0 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 z-20 shadow-sm overflow-hidden flex flex-col"
                     style={{ width: `${sidebarWidth}px` }}
                 >
                     {/* Double Header Height to Match Chart */}
-                    <div className="h-20 bg-slate-50 border-b border-slate-200 flex items-center px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <div className="h-20 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 flex items-center px-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                         Atividade / Projeto
                     </div>
 
@@ -241,7 +237,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
                         {projects.map((project, index) => (
                             <div
                                 key={index}
-                                className="h-10 border-b border-slate-100 flex items-center px-4 text-sm font-medium text-slate-700 truncate cursor-pointer hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                                className="h-10 border-b border-slate-100 dark:border-slate-700 flex items-center px-4 text-sm font-medium text-slate-700 dark:text-slate-200 truncate cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                                 title={`Clique para focar em: ${project.name}`}
                                 onClick={() => scrollToDate(project.startDate)}
                             >
@@ -254,19 +250,19 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
                 {/* Scrollable Timeline */}
                 <div
                     ref={scrollContainerRef}
-                    className="flex-grow overflow-x-auto overflow-y-hidden relative bg-white"
+                    className="flex-grow overflow-x-auto overflow-y-hidden relative bg-white dark:bg-slate-800"
                 >
                     <div style={{ width: `${chartTotalWidth}px`, minWidth: '100%' }}>
 
                         {/* Headers Container (Height 20 = 80px or h-20 in tailwind) */}
-                        <div className="h-20 bg-slate-50 border-b border-slate-200 relative">
+                        <div className="h-20 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 relative">
 
                             {/* Top Row: Groupings */}
                             <div className="h-10 w-full relative border-b border-slate-200">
                                 {topHeaders.map((header, i) => (
                                     <div
                                         key={i}
-                                        className="absolute top-0 bottom-0 flex items-center pl-2 text-xs font-bold text-slate-600 border-r border-slate-200 truncate bg-slate-100/50"
+                                        className="absolute top-0 bottom-0 flex items-center pl-2 text-xs font-bold text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 truncate bg-slate-100/50 dark:bg-slate-700/30"
                                         style={{
                                             left: `${header.startPos}px`,
                                             width: `${header.width}px`
@@ -284,7 +280,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
                                     return (
                                         <div
                                             key={i}
-                                            className="absolute top-0 bottom-0 flex items-center justify-center text-xs text-slate-500 border-r border-slate-200 px-1 truncate"
+                                            className="absolute top-0 bottom-0 flex items-center justify-center text-xs text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700 px-1 truncate"
                                             style={{
                                                 left: `${left}px`,
                                                 width: `${config.columnWidth}px`
@@ -306,7 +302,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
                                     return (
                                         <div
                                             key={i}
-                                            className="absolute top-0 bottom-0 border-r border-slate-100"
+                                            className="absolute top-0 bottom-0 border-r border-slate-100 dark:border-slate-700"
                                             style={{ left: `${left}px`, width: `${config.columnWidth}px` }}
                                         />
                                     );
@@ -321,9 +317,9 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
                                 const barColor = project.status === 'Travado' ? 'bg-slate-700' : 'bg-blue-500';
 
                                 return (
-                                    <div key={index} className="h-10 border-b border-slate-100 relative w-full group">
+                                    <div key={index} className="h-10 border-b border-slate-100 dark:border-slate-700 relative w-full group">
                                         {/* Row Highlight on Hover */}
-                                        <div className="absolute inset-0 hover:bg-slate-50 transition-colors w-full" />
+                                        <div className="absolute inset-0 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors w-full" />
 
                                         <div
                                             className={`absolute h-6 ${barColor} rounded-md top-2 shadow-sm cursor-pointer hover:brightness-110 transition-all z-10 flex items-center px-2`}

@@ -48,7 +48,7 @@ export default function Dashboard({ projects, onEditProject }: DashboardProps) {
   const totalProjects = projects.length;
   const activeProjects = projects.filter(p => p.status !== ProjectStatus.Concluido).length;
   const concludedProjects = projects.filter(p => p.status === ProjectStatus.Concluido).length;
-  const delayedProjects = projects.filter(p => p.status === ProjectStatus.Atrasado).length;
+
 
   // Unified Filtering Logic
   const filteredProjects = useMemo(() => {
@@ -253,8 +253,8 @@ export default function Dashboard({ projects, onEditProject }: DashboardProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border border-slate-200">
-        <h2 className="text-2xl font-bold text-slate-800">Dashboard do Portfólio</h2>
+      <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Dashboard do Portfólio</h2>
         <div className="flex space-x-2">
           <button
             onClick={() => setIsImportModalOpen(true)}
@@ -270,12 +270,12 @@ export default function Dashboard({ projects, onEditProject }: DashboardProps) {
         <StatCard title="Total de Projetos" value={totalProjects} color="blue" />
         <StatCard title="Em Execução" value={activeProjects} color="yellow" />
         <StatCard title="Concluídos" value={concludedProjects} color="green" />
-        <StatCard title="Atrasados" value={delayedProjects} color="red" />
+
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-slate-700">Resumo de Projetos no Portfólio</h3>
+          <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">Resumo de Projetos no Portfólio</h3>
           <span className="text-sm text-slate-400">Exibindo {filteredProjects.length} registros</span>
         </div>
         <ProjectSummaryTable
@@ -290,9 +290,9 @@ export default function Dashboard({ projects, onEditProject }: DashboardProps) {
         />
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
         <div className="flex flex-col md:flex-row justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-slate-700">Linha do Tempo (Gantt)</h3>
+          <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">Linha do Tempo (Gantt)</h3>
           <div className="flex space-x-2 mt-2 md:mt-0">
             <button
               onClick={() => setViewMode('day')}
@@ -324,8 +324,8 @@ export default function Dashboard({ projects, onEditProject }: DashboardProps) {
           <GanttChart
             projects={ganttProjects}
             viewMode={viewMode}
-            overallStartDate={overallStartDate}
-            overallEndDate={overallEndDate}
+            startDate={overallStartDate}
+            endDate={overallEndDate}
           />
         </div>
       </div>

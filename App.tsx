@@ -74,15 +74,7 @@ const App: React.FC = () => {
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
 
   // No separate state for notifications needed, using Routing.
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
 
-  useEffect(() => {
-    if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [theme]);
 
 
   const handleSaveProject = (projectData: Omit<Project, 'id'> & { id?: number }) => {
@@ -309,7 +301,7 @@ const App: React.FC = () => {
         {/* Protected Routes */}
         <Route path="*" element={
           currentUser ? (
-            <div className="flex h-screen bg-gray-100 font-sans">
+            <div className="flex h-screen bg-gray-100 dark:bg-slate-950 font-sans">
               <Sidebar
                 companyName={companyName}
                 projects={projects}
@@ -338,8 +330,6 @@ const App: React.FC = () => {
                       onDeleteUser={handleDeleteUser}
                       companyName={companyName}
                       setCompanyName={setCompanyName}
-                      theme={theme}
-                      setTheme={setTheme}
                     />
                   } />
 

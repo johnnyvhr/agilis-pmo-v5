@@ -1,11 +1,8 @@
-
 export enum ProjectStatus {
   EmPlanejamento = 'Em Planejamento',
   EmAndamento = 'Em Andamento',
   Concluido = 'Concluído',
   Cancelado = 'Cancelado',
-  Atrasado = 'Atrasado',
-  EmDia = 'Em Dia',
 }
 
 export interface Project {

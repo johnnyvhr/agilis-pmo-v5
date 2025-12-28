@@ -1,10 +1,9 @@
 import React from 'react';
 import SettingsPageLayout from './SettingsPageLayout';
+import { useTheme } from '../../context/ThemeContext';
 
 interface AparenciaProps {
-  onBack: () => void;
-  theme: 'light' | 'dark' | 'system';
-  setTheme: (theme: 'light' | 'dark' | 'system') => void;
+    onBack: () => void;
 }
 
 const ThemeOption: React.FC<{
@@ -29,41 +28,43 @@ const ThemeOption: React.FC<{
 };
 
 
-const Aparencia: React.FC<AparenciaProps> = ({ onBack, theme, setTheme }) => {
-  return (
-    <SettingsPageLayout title="Aparência" onBack={onBack}>
-      <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-2">Tema</h3>
-      <p className="text-slate-600 dark:text-slate-400 mb-6">Personalize a aparência do Agilis PMO no seu navegador.</p>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl">
-        <ThemeOption title="Claro" value="light" currentTheme={theme} setTheme={setTheme}>
-            <div className="w-full h-32 bg-white rounded-md flex p-3">
-                <div className="w-1/3 bg-slate-100 rounded-l-sm"></div>
-                <div className="flex-1 bg-slate-50 rounded-r-sm border border-slate-200 ml-1"></div>
-            </div>
-        </ThemeOption>
-        <ThemeOption title="Escuro" value="dark" currentTheme={theme} setTheme={setTheme}>
-             <div className="w-full h-32 bg-slate-900 rounded-md flex p-3">
-                <div className="w-1/3 bg-slate-800 rounded-l-sm"></div>
-                <div className="flex-1 bg-slate-700 rounded-r-sm border border-slate-600 ml-1"></div>
-            </div>
-        </ThemeOption>
-        <ThemeOption title="Padrão do Sistema" value="system" currentTheme={theme} setTheme={setTheme}>
-             <div className="w-full h-32 bg-white rounded-md flex p-3 overflow-hidden">
-                <div className="w-full h-full relative">
-                    <div className="absolute top-0 left-0 w-1/2 h-full bg-white">
-                        <div className="w-1/3 h-full bg-slate-100 rounded-l-sm"></div>
-                        <div className="absolute top-0 left-1/3 w-2/3 h-full bg-slate-50 rounded-r-sm border border-slate-200 ml-1"></div>
+const Aparencia: React.FC<AparenciaProps> = ({ onBack }) => {
+    const { theme, setTheme } = useTheme();
+
+    return (
+        <SettingsPageLayout title="Aparência" onBack={onBack}>
+            <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-2">Tema</h3>
+            <p className="text-slate-600 dark:text-slate-400 mb-6">Personalize a aparência do Agilis PMO no seu navegador.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl">
+                <ThemeOption title="Claro" value="light" currentTheme={theme} setTheme={setTheme}>
+                    <div className="w-full h-32 bg-white rounded-md flex p-3">
+                        <div className="w-1/3 bg-slate-100 rounded-l-sm"></div>
+                        <div className="flex-1 bg-slate-50 rounded-r-sm border border-slate-200 ml-1"></div>
                     </div>
-                     <div className="absolute top-0 right-0 w-1/2 h-full bg-slate-900">
-                        <div className="w-1/3 h-full bg-slate-800 rounded-l-sm"></div>
-                        <div className="absolute top-0 left-1/3 w-2/3 h-full bg-slate-700 rounded-r-sm border border-slate-600 ml-1"></div>
+                </ThemeOption>
+                <ThemeOption title="Escuro" value="dark" currentTheme={theme} setTheme={setTheme}>
+                    <div className="w-full h-32 bg-slate-900 rounded-md flex p-3">
+                        <div className="w-1/3 bg-slate-800 rounded-l-sm"></div>
+                        <div className="flex-1 bg-slate-700 rounded-r-sm border border-slate-600 ml-1"></div>
                     </div>
-                </div>
+                </ThemeOption>
+                <ThemeOption title="Padrão do Sistema" value="system" currentTheme={theme} setTheme={setTheme}>
+                    <div className="w-full h-32 bg-white rounded-md flex p-3 overflow-hidden">
+                        <div className="w-full h-full relative">
+                            <div className="absolute top-0 left-0 w-1/2 h-full bg-white">
+                                <div className="w-1/3 h-full bg-slate-100 rounded-l-sm"></div>
+                                <div className="absolute top-0 left-1/3 w-2/3 h-full bg-slate-50 rounded-r-sm border border-slate-200 ml-1"></div>
+                            </div>
+                            <div className="absolute top-0 right-0 w-1/2 h-full bg-slate-900">
+                                <div className="w-1/3 h-full bg-slate-800 rounded-l-sm"></div>
+                                <div className="absolute top-0 left-1/3 w-2/3 h-full bg-slate-700 rounded-r-sm border border-slate-600 ml-1"></div>
+                            </div>
+                        </div>
+                    </div>
+                </ThemeOption>
             </div>
-        </ThemeOption>
-      </div>
-    </SettingsPageLayout>
-  );
+        </SettingsPageLayout>
+    );
 };
 
 export default Aparencia;

@@ -22,14 +22,12 @@ interface ProjectSummaryTableProps {
   onFilterChange: (key: keyof FilterState, value: string) => void;
 }
 
-const getStatusColor = (status: ProjectStatus) => {
+const getStatusColor = (status: string) => {
   switch (status) {
-    case ProjectStatus.Atrasado:
-      return 'bg-red-100 text-red-700';
     case ProjectStatus.Concluido:
       return 'bg-green-100 text-green-700';
-    case ProjectStatus.EmDia:
-      return 'bg-blue-100 text-blue-700';
+    case 'Em Dia':
+    case 'Atrasado':
     case ProjectStatus.EmAndamento:
       return 'bg-yellow-100 text-yellow-700';
     case ProjectStatus.EmPlanejamento:
@@ -100,13 +98,13 @@ const ProjectSummaryTable: React.FC<ProjectSummaryTableProps> = ({
     <div className="space-y-4">
 
       {/* 1. Filter Toolbar */}
-      <div className="bg-slate-50 p-4 rounded-md border border-slate-200 grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+      <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-md border border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Status</label>
+          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Status</label>
           <select
             value={filters.status}
             onChange={e => onFilterChange('status', e.target.value)}
-            className="w-full text-sm border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            className="w-full text-sm border-slate-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-900 dark:text-slate-200"
           >
             <option value="">Todos</option>
             {Object.values(ProjectStatus).map(s => <option key={s} value={s}>{s}</option>)}
@@ -140,7 +138,7 @@ const ProjectSummaryTable: React.FC<ProjectSummaryTableProps> = ({
             type="date"
             value={filters.startDate}
             onChange={e => onFilterChange('startDate', e.target.value)}
-            className="w-full text-sm border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            className="w-full text-sm border-slate-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-900 dark:text-slate-200"
           />
         </div>
         <div>
@@ -149,7 +147,7 @@ const ProjectSummaryTable: React.FC<ProjectSummaryTableProps> = ({
             type="date"
             value={filters.endDate}
             onChange={e => onFilterChange('endDate', e.target.value)}
-            className="w-full text-sm border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            className="w-full text-sm border-slate-300 dark:border-slate-600 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-900 dark:text-slate-200"
           />
         </div>
       </div>
@@ -175,9 +173,9 @@ const ProjectSummaryTable: React.FC<ProjectSummaryTableProps> = ({
         </div>
       )}
 
-      <div className="overflow-x-auto border border-slate-200 rounded-md">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
+      <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-md">
+        <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+          <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
             <tr>
               {/* Checkbox Header */}
               <th className="p-3 w-10">
@@ -198,24 +196,24 @@ const ProjectSummaryTable: React.FC<ProjectSummaryTableProps> = ({
               <th className="p-3 font-semibold text-slate-500 uppercase tracking-wider">Ações</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 bg-white">
+          <tbody className="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
             {projects.length > 0 ? projects.map((project) => (
-              <tr key={project.id} className={selectedIds.includes(project.id) ? 'bg-blue-50' : 'hover:bg-slate-50'}>
+              <tr key={project.id} className={selectedIds.includes(project.id) ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors'}>
                 {/* Checkbox Cell */}
                 <td className="p-3">
                   <input
                     type="checkbox"
                     checked={selectedIds.includes(project.id)}
                     onChange={() => handleSelectRow(project.id)}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-700"
                   />
                 </td>
-                <td className="p-3 text-slate-700 font-medium whitespace-nowrap">{project.code || '-'}</td>
-                <td className="p-3 text-slate-700 font-medium">{project.name}</td>
-                <td className="p-3 text-slate-700">{project.manager}</td>
-                <td className="p-3 text-slate-700">{project.client}</td>
-                <td className="p-3 text-slate-700 whitespace-nowrap">{project.startDate}</td>
-                <td className="p-3 text-slate-700 whitespace-nowrap">{project.endDate}</td>
+                <td className="p-3 font-medium whitespace-nowrap text-slate-700 dark:text-slate-200">{project.code || '-'}</td>
+                <td className="p-3 font-medium text-slate-700 dark:text-slate-200">{project.name}</td>
+                <td className="p-3 text-slate-600 dark:text-slate-300">{project.manager}</td>
+                <td className="p-3 text-slate-600 dark:text-slate-300">{project.client}</td>
+                <td className="p-3 whitespace-nowrap text-slate-600 dark:text-slate-300">{project.startDate}</td>
+                <td className="p-3 whitespace-nowrap text-slate-600 dark:text-slate-300">{project.endDate}</td>
                 <td className="p-3">
                   <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(project.status)}`}>
                     {project.status}
