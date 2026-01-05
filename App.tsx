@@ -29,6 +29,8 @@ import LoginPage from './components/LoginPage';
 import InvitePage from './components/InvitePage';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
+import { useConfirmation } from './context/ConfirmationContext';
+import { useToast } from './context/ToastContext';
 
 // Login component moved to ./components/LoginPage.tsx
 
@@ -57,6 +59,8 @@ const App: React.FC = () => {
   } = useProjectContext();
 
   // Modal States
+  const { confirm } = useConfirmation();
+  const toast = useToast();
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
 
@@ -92,7 +96,7 @@ const App: React.FC = () => {
       const oldProject = projects.find(p => p.id === projectData.id);
       if (oldProject) {
         updateProject({ ...oldProject, ...projectData } as Project);
-        alert('Projeto atualizado com sucesso!');
+        toast.success('Projeto atualizado com sucesso!');
       }
     } else {
       const newProject = {
@@ -101,7 +105,7 @@ const App: React.FC = () => {
         associatedTeamIds: projectData.associatedTeamIds || []
       } as Project;
       addProject(newProject);
-      alert('Projeto criado com sucesso!');
+      toast.success('Projeto criado com sucesso!');
     }
     setIsProjectModalOpen(false);
     setProjectToEdit(null);
@@ -109,7 +113,7 @@ const App: React.FC = () => {
 
   const handleDeleteProject = (projectId: number) => {
     deleteProject(projectId);
-    alert('Projeto excluído com sucesso!');
+    toast.success('Projeto excluído com sucesso!');
     setIsProjectModalOpen(false);
     setProjectToEdit(null);
   };
@@ -134,8 +138,15 @@ const App: React.FC = () => {
     setIsTaskModalOpen(false);
   };
 
-  const handleDeleteTask = (taskId: number) => {
-    if (window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
+  const handleDeleteTask = async (taskId: number) => {
+    const confirmed = await confirm({
+      title: 'Excluir Tarefa',
+      description: 'Tem certeza que deseja excluir esta tarefa?',
+      confirmText: 'Excluir',
+      variant: 'destructive'
+    });
+
+    if (confirmed) {
       deleteTask(taskId);
     }
     setIsTaskModalOpen(false);
@@ -162,8 +173,15 @@ const App: React.FC = () => {
     setIsRiskModalOpen(false);
   };
 
-  const handleDeleteRisk = (riskId: number) => {
-    if (window.confirm('Tem certeza que deseja excluir este risco?')) {
+  const handleDeleteRisk = async (riskId: number) => {
+    const confirmed = await confirm({
+      title: 'Excluir Risco',
+      description: 'Tem certeza que deseja excluir este risco?',
+      confirmText: 'Excluir',
+      variant: 'destructive'
+    });
+
+    if (confirmed) {
       deleteRisk(riskId);
     }
     setIsRiskModalOpen(false);
@@ -190,8 +208,15 @@ const App: React.FC = () => {
     setIsQualityModalOpen(false);
   };
 
-  const handleDeleteQualityCheck = (qcId: number) => {
-    if (window.confirm('Tem certeza que deseja excluir este item de qualidade?')) {
+  const handleDeleteQualityCheck = async (qcId: number) => {
+    const confirmed = await confirm({
+      title: 'Excluir Item de Qualidade',
+      description: 'Tem certeza que deseja excluir este item de qualidade?',
+      confirmText: 'Excluir',
+      variant: 'destructive'
+    });
+
+    if (confirmed) {
       deleteQualityCheck(qcId);
     }
     setIsQualityModalOpen(false);
@@ -218,8 +243,15 @@ const App: React.FC = () => {
     setIsTeamModalOpen(false);
   };
 
-  const handleDeleteTeam = (teamId: number) => {
-    if (window.confirm('Tem certeza que deseja excluir esta equipe?')) {
+  const handleDeleteTeam = async (teamId: number) => {
+    const confirmed = await confirm({
+      title: 'Excluir Equipe',
+      description: 'Tem certeza que deseja excluir esta equipe?',
+      confirmText: 'Excluir',
+      variant: 'destructive'
+    });
+
+    if (confirmed) {
       deleteTeam(teamId);
     }
     setIsTeamModalOpen(false);
@@ -236,7 +268,7 @@ const App: React.FC = () => {
   };
 
   // User Handlers
-  const handleSaveUser = (userData: Omit<User, 'id' | 'email' | 'status'> & { id?: number; email?: string; status?: 'Ativo' | 'Pendente' }) => {
+  const handleSaveUser = (userData: Omit<User, 'id' | 'email' | 'status'> & { id?: number | string; email?: string; status?: 'Ativo' | 'Pendente' | 'Inativo' }) => {
     if (userData.id) {
       const old = users.find(u => u.id === userData.id);
       if (old) updateUser({ ...old, ...userData } as User);
@@ -252,13 +284,20 @@ const App: React.FC = () => {
     setIsUserModalOpen(false);
   };
 
-  const handleDeleteUser = (userId: number) => {
+  const handleDeleteUser = async (userId: number | string) => {
     const isLeader = teams.some(team => team.leaderId === userId);
     if (isLeader) {
-      alert('Não é possível excluir este membro pois ele é líder de uma ou mais equipes. Por favor, reatribua a liderança antes de excluir.');
+      toast.error('Não é possível excluir este membro pois ele é líder de uma ou mais equipes. Por favor, reatribua a liderança antes de excluir.');
       return;
     }
-    if (window.confirm('Tem certeza que deseja excluir este membro? Ele será removido de todas as equipes.')) {
+    const confirmed = await confirm({
+      title: 'Excluir Membro',
+      description: 'Tem certeza que deseja excluir este membro? Ele será removido de todas as equipes.',
+      confirmText: 'Excluir',
+      variant: 'destructive'
+    });
+
+    if (confirmed) {
       deleteUser(userId);
       setIsUserModalOpen(false);
       setUserToEdit(null);

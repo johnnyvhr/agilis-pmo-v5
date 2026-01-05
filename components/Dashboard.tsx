@@ -13,7 +13,11 @@ interface DashboardProps {
   onEditProject: (project: Project) => void;
 }
 
+import { useToast } from '../context/ToastContext';
+
 export default function Dashboard({ projects, onEditProject }: DashboardProps) {
+  const toast = useToast();
+
   const [viewMode, setViewMode] = useState<ViewMode>('quarter');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [managers, setManagers] = useState<{ id: string, name: string }[]>([]);
@@ -207,9 +211,9 @@ export default function Dashboard({ projects, onEditProject }: DashboardProps) {
     const { error } = await supabase.from('projects').insert(projectsToInsert);
 
     if (error) {
-      alert('Erro ao importar projetos: ' + error.message);
+      toast.error('Erro ao importar projetos: ' + error.message);
     } else {
-      alert(`${projectsToInsert.length} projetos importados com sucesso!`);
+      toast.success(`${projectsToInsert.length} projetos importados com sucesso!`);
       window.location.reload();
     }
   };
@@ -229,10 +233,10 @@ export default function Dashboard({ projects, onEditProject }: DashboardProps) {
 
       if (error) throw error;
 
-      alert('Projetos atualizados com sucesso!');
+      toast.success('Projetos atualizados com sucesso!');
       window.location.reload();
     } catch (err: any) {
-      alert('Erro na atualização em massa: ' + err.message);
+      toast.error('Erro na atualização em massa: ' + err.message);
     }
   };
 
@@ -245,10 +249,10 @@ export default function Dashboard({ projects, onEditProject }: DashboardProps) {
 
       if (error) throw error;
 
-      alert('Projetos excluídos com sucesso!');
+      toast.success('Projetos excluídos com sucesso!');
       window.location.reload();
     } catch (err: any) {
-      alert('Erro ao excluir projetos: ' + err.message);
+      toast.error('Erro ao excluir projetos: ' + err.message);
     }
   };
 

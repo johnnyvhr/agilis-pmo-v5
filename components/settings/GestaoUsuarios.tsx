@@ -9,7 +9,7 @@ interface GestaoUsuariosProps {
   users: User[];
   onAddUser: () => void;
   onEditUser: (user: User) => void;
-  onDeleteUser: (userId: number) => void;
+  onDeleteUser: (userId: number | string) => void;
 }
 
 const GestaoUsuarios: React.FC<GestaoUsuariosProps> = ({ onBack, users, onAddUser, onEditUser, onDeleteUser }) => {

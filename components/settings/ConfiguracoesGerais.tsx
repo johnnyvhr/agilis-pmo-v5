@@ -11,8 +11,11 @@ interface ConfiguracoesGeraisProps {
   setCompanyName: (name: string) => void;
 }
 
+import { useToast } from '../../context/ToastContext';
+
 const ConfiguracoesGerais: React.FC<ConfiguracoesGeraisProps> = ({ onBack, companyName, setCompanyName }) => {
   const { currentUser } = useProjectContext();
+  const toast = useToast();
   const [localCompanyName, setLocalCompanyName] = useState(companyName);
   const [environmentUrl, setEnvironmentUrl] = useState('agilis-pmo.app/sua-empresa');
 
@@ -25,17 +28,16 @@ const ConfiguracoesGerais: React.FC<ConfiguracoesGeraisProps> = ({ onBack, compa
     // Context update is optimistic. We can show success here.
     // Ideally we wait for promise but setCompanyName is void in prop.
     // We assume success or context will revert/alert.
-    alert('Solicitação de alteração enviada.');
+    toast.success('Solicitação de alteração enviada.');
   };
-
   const handleDeleteEnvironment = () => {
     if (!isAdmin) return;
     const confirmation = window.prompt(`Esta ação é irreversível. Todos os dados do ambiente serão perdidos.\n\nPara confirmar, digite o nome do ambiente: "${companyName}"`);
     if (confirmation === companyName) {
-      alert('Ambiente excluído com sucesso.');
+      toast.success('Ambiente excluído com sucesso.');
       // Here you would typically redirect the user or force a page reload
     } else if (confirmation !== null) {
-      alert('O nome digitado não corresponde. A exclusão foi cancelada.');
+      toast.error('O nome digitado não corresponde. A exclusão foi cancelada.');
     }
   };
 

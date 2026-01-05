@@ -7,6 +7,7 @@ import { ChartBarIcon, ImportIcon, ExportIcon, PlusIcon, PencilIcon, TrashIcon }
 import DashboardAnaliticoMedicoes from './DashboardAnaliticoMedicoes';
 import MedicaoFormModal from './MedicaoFormModal';
 import { supabase } from '../lib/supabaseClient';
+import ConfirmationDialog from './ui/ConfirmationDialog';
 
 
 interface GestaoMedicoesProps {
@@ -14,7 +15,11 @@ interface GestaoMedicoesProps {
     departments: string[];
 }
 
+import { useToast } from '../context/ToastContext';
+
 const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }) => {
+    const toast = useToast();
+
     const [medicoes, setMedicoes] = useState<Medicao[]>([]);
     const [filteredMedicoes, setFilteredMedicoes] = useState<Medicao[]>([]);
     const [loading, setLoading] = useState(true);
@@ -25,6 +30,21 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
     const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
     const [projectsList, setProjectsList] = useState<{ id: string, name: string }[]>([]);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+    // Confirmation Dialog State
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        description: string;
+        onConfirm: () => void;
+        variant: 'default' | 'destructive';
+    }>({
+        isOpen: false,
+        title: '',
+        description: '',
+        onConfirm: () => { },
+        variant: 'default'
+    });
 
     // Filter States
     const [statusFilter, setStatusFilter] = useState('');
@@ -137,20 +157,28 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
         setIsModalOpen(true);
     };
 
-    const handleDelete = async (id: string) => {
-        if (window.confirm('Tem certeza que deseja excluir esta medição?')) {
-            const { error } = await supabase
-                .from('project_measurements')
-                .delete()
-                .eq('id', id);
+    const handleDelete = (id: string) => {
+        setConfirmConfig({
+            isOpen: true,
+            title: "Excluir Medição",
+            description: "Tem certeza que deseja excluir esta medição? Esta ação não pode ser desfeita.",
+            variant: 'destructive',
+            onConfirm: async () => {
+                const { error } = await supabase
+                    .from('project_measurements')
+                    .delete()
+                    .eq('id', id);
 
-            if (error) {
-                alert('Erro ao excluir medição: ' + error.message);
-            } else {
-                setMedicoes(medicoes.filter(m => m.id !== id));
+                if (error) {
+                    toast.error('Erro ao excluir medição: ' + error.message);
+                } else {
+                    setMedicoes(prev => prev.filter(m => m.id !== id));
+                    toast.success('Medição excluída com sucesso.');
+                }
+                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
             }
-        }
-    }
+        });
+    };
 
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.checked) {
@@ -166,23 +194,30 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
         );
     };
 
-    const handleBulkDelete = async () => {
+    const handleBulkDelete = () => {
         if (selectedIds.length === 0) return;
 
-        if (window.confirm(`Tem certeza que deseja excluir ${selectedIds.length} medições selecionadas?`)) {
-            const { error } = await supabase
-                .from('project_measurements')
-                .delete()
-                .in('id', selectedIds);
+        setConfirmConfig({
+            isOpen: true,
+            title: "Excluir Medições Selecionadas",
+            description: `Tem certeza que deseja excluir ${selectedIds.length} medições selecionadas? Esta ação não pode ser desfeita.`,
+            variant: 'destructive',
+            onConfirm: async () => {
+                const { error } = await supabase
+                    .from('project_measurements')
+                    .delete()
+                    .in('id', selectedIds);
 
-            if (error) {
-                alert('Erro ao excluir medições: ' + error.message);
-            } else {
-                setMedicoes(medicoes.filter(m => !selectedIds.includes(m.id)));
-                setSelectedIds([]);
-                alert(`${selectedIds.length} medições excluídas com sucesso.`);
+                if (error) {
+                    toast.error('Erro ao excluir medições: ' + error.message);
+                } else {
+                    setMedicoes(prev => prev.filter(m => !selectedIds.includes(m.id)));
+                    setSelectedIds([]);
+                    toast.success(`${selectedIds.length} medições excluídas com sucesso.`);
+                }
+                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
             }
-        }
+        });
     };
 
     const handleStatusChange = async (id: string, newStatus: string, oldStatus: string) => {
@@ -193,7 +228,7 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
             .eq('id', id);
 
         if (error) {
-            alert('Erro ao atualizar status: ' + error.message);
+            toast.error('Erro ao atualizar status: ' + error.message);
             return;
         }
 
@@ -241,9 +276,9 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
 
                 if (insertError) {
                     console.error("Error creating revenue:", insertError);
-                    alert("Aviso: Status 'Faturada' salvo, mas erro ao criar financeiro.");
+                    toast.info("Aviso: Status 'Faturada' salvo, mas erro ao criar financeiro.");
                 } else {
-                    alert("Status atualizado para Faturada. Receita lançada.");
+                    toast.success("Status atualizado para Faturada. Receita lançada.");
                 }
             }
         }
@@ -260,7 +295,7 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
                 console.error("Error deleting financial record:", deleteError);
             } else {
                 if (oldStatus === 'Faturada') {
-                    alert("Status alterado. Lançamento financeiro removido.");
+                    toast.info("Status alterado. Lançamento financeiro removido.");
                 }
                 // If it wasn't Faturada, we quietly ensured it's gone (cleanup).
             }
@@ -280,7 +315,7 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
                 if (proj) {
                     projectId = proj.id;
                 } else {
-                    alert("Erro: Projeto não encontrado.");
+                    toast.error("Erro: Projeto não encontrado.");
                     return;
                 }
             }
@@ -288,7 +323,7 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
             // Get Current User for Audit
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
-                alert("Erro: Usuário não autenticado. Faça login novamente.");
+                toast.error("Erro: Usuário não autenticado. Faça login novamente.");
                 return;
             }
 
@@ -324,7 +359,7 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
 
                 if (error) {
                     console.error('Supabase Error (Update):', error);
-                    alert('Erro ao atualizar medição: ' + error.message);
+                    toast.error('Erro ao atualizar medição: ' + error.message);
                 } else {
                     console.log('Update Success:', data);
 
@@ -372,7 +407,7 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
 
                 if (error) {
                     console.error('Supabase Error (Insert):', error);
-                    alert('Erro ao salvar medição: ' + error.message);
+                    toast.error('Erro ao salvar medição: ' + error.message);
                 } else {
                     // NEW: If created as 'Faturada', create financial record
                     if (payload.status === 'Faturada' && data && data.length > 0) {
@@ -401,13 +436,13 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
             }
         } catch (err: any) {
             console.error("Unexpected error in handleSave:", err);
-            alert("Erro inesperado ao salvar: " + err.message);
+            toast.error("Erro inesperado ao salvar: " + err.message);
         }
     };
 
     const handleExportXLSX = () => {
         if (filteredMedicoes.length === 0) {
-            alert("Não há medições para exportar.");
+            toast.info("Não há medições para exportar.");
             return;
         }
 
@@ -460,7 +495,7 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
             // Get Current User
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
-                alert("Erro: Usuário não autenticado. Faça login para importar.");
+                toast.error("Erro: Usuário não autenticado. Faça login para importar.");
                 return;
             }
 
@@ -554,7 +589,7 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
                     });
                 } else if (!project.id) {
                     console.error(`Error: Project ID not found for project: ${projectNameRaw}`);
-                    alert(`Erro na importação: O projeto '${projectNameRaw}' foi encontrado, mas não possui um ID válido no sistema. Esta linha será ignorada.`);
+                    toast.error(`Erro na importação: O projeto '${projectNameRaw}' foi encontrado, mas não possui um ID válido no sistema. Esta linha será ignorada.`);
                     skippedCount++;
                 } else {
                     console.warn("Invalid row data skipped (Code 2):", row);
@@ -574,19 +609,19 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
 
                 if (error) {
                     console.error('Supabase Error (Import):', error);
-                    alert('Erro ao salvar medições importadas: ' + error.message);
+                    toast.error('Erro ao salvar medições importadas: ' + error.message);
                 } else {
                     const msg = `${formattedRows.length} medições importadas com sucesso!`;
-                    alert(skippedCount > 0 ? `${msg} (${skippedCount} linhas ignoradas/inválidas)` : msg);
+                    toast.success(skippedCount > 0 ? `${msg} (${skippedCount} linhas ignoradas/inválidas)` : msg);
                     fetchMedicoes();
                 }
             } else {
-                alert('Nenhuma linha válida encontrada para importação.');
+                toast.info('Nenhuma linha válida encontrada para importação.');
             }
 
         } catch (err: any) {
             console.error("Error parsing file:", err);
-            alert("Erro ao ler o arquivo Excel: " + err.message);
+            toast.error("Erro ao ler o arquivo Excel: " + err.message);
         }
 
         event.target.value = '';
@@ -611,6 +646,14 @@ const GestaoMedicoes: React.FC<GestaoMedicoesProps> = ({ projects, departments }
                     departments={departments}
                 />
             )}
+            <ConfirmationDialog
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                description={confirmConfig.description}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                variant={confirmConfig.variant}
+            />
             <div className="p-8 bg-slate-100">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-3xl font-bold text-slate-800">Gestão de Medições</h1>

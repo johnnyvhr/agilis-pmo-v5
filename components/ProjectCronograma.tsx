@@ -15,7 +15,11 @@ interface ProjectCronogramaProps {
     onEditTask: (task: Task) => void;
 }
 
+import { useToast } from '../context/ToastContext';
+
 const ProjectCronograma: React.FC<ProjectCronogramaProps> = ({ onAddTask, onEditTask }) => {
+    const toast = useToast();
+
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const {
@@ -134,7 +138,7 @@ const ProjectCronograma: React.FC<ProjectCronogramaProps> = ({ onAddTask, onEdit
 
     const handleExportXLSX = () => {
         if (tasks.length === 0) {
-            alert("Não há dados para exportar.");
+            toast.info("Não há dados para exportar.");
             return;
         }
 
@@ -209,7 +213,7 @@ const ProjectCronograma: React.FC<ProjectCronogramaProps> = ({ onAddTask, onEdit
             }
         });
 
-        alert(`Importação concluída!\nTarefas adicionadas: ${addedCount}\nTarefas atualizadas: ${updatedCount}`);
+        toast.success(`Importação concluída! ${addedCount} adicionadas, ${updatedCount} atualizadas.`);
     };
 
     const openDuplicateModal = (task: Task) => {
@@ -258,7 +262,7 @@ const ProjectCronograma: React.FC<ProjectCronogramaProps> = ({ onAddTask, onEdit
 
         // Alert if duplicated to another project
         if (config.targetProjectName !== project?.name) {
-            alert(`Tarefa duplicada com sucesso para o projeto "${config.targetProjectName}".`);
+            toast.success(`Tarefa duplicada com sucesso para o projeto "${config.targetProjectName}".`);
         }
     };
 
@@ -287,11 +291,11 @@ const ProjectCronograma: React.FC<ProjectCronogramaProps> = ({ onAddTask, onEdit
                 .in('id', selectedIds);
 
             if (error) {
-                alert('Erro ao excluir tarefas: ' + error.message);
+                toast.error('Erro ao excluir tarefas: ' + error.message);
             } else {
-                alert(`${selectedIds.length} tarefas excluídas com sucesso. A página será recarregada.`);
+                toast.success(`${selectedIds.length} tarefas excluídas com sucesso. A página será recarregada.`);
                 setSelectedIds([]);
-                window.location.reload(); // Refresh to update context
+                setTimeout(() => window.location.reload(), 1500); // Delay refresh to show toast
             }
         }
     };

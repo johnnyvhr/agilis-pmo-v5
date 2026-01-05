@@ -4,6 +4,7 @@ import { User, ROLE_LABELS, UserRole } from '../types';
 import { PlusIcon, PencilIcon } from './icons';
 import { supabase } from '../lib/supabaseClient';
 import { useState } from 'react';
+import ConfirmationDialog from './ui/ConfirmationDialog';
 
 interface GestaoMembrosProps {
   users: User[];
@@ -11,8 +12,28 @@ interface GestaoMembrosProps {
   onEditUser: (user: User) => void;
 }
 
+import { useToast } from '../context/ToastContext';
+
 const GestaoMembros: React.FC<GestaoMembrosProps> = ({ users, onAddUser, onEditUser }) => {
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const toast = useToast();
+
+  const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
+
+  // Confirmation Dialog State
+  const [confirmConfig, setConfirmConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    variant: 'default' | 'destructive';
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    onConfirm: () => { },
+    variant: 'default'
+  });
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -22,31 +43,59 @@ const GestaoMembros: React.FC<GestaoMembrosProps> = ({ users, onAddUser, onEditU
     }
   };
 
-  const handleSelectRow = (id: number) => {
+  const handleSelectRow = (id: string | number) => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
     );
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedIds.length === 0) return;
 
-    if (window.confirm(`Tem certeza que deseja remover ${selectedIds.length} membros do projeto?`)) {
-      // Removing from project_members junction table as requested.
-      // Note: This removes the user's association with projects.
-      const { error } = await supabase
-        .from('project_members')
-        .delete()
-        .in('user_id', selectedIds);
+    setConfirmConfig({
+      isOpen: true,
+      title: "Remover Membros Selecionados",
+      description: `Tem certeza que deseja remover ${selectedIds.length} selecionados? Esta ação removerá o acesso deles ao Workspace.`,
+      variant: 'destructive',
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          const inviteIds = selectedIds.filter(id => String(id).startsWith('invite-'));
+          const memberIds = selectedIds.filter(id => !String(id).startsWith('invite-'));
 
-      if (error) {
-        alert('Erro ao remover membros: ' + error.message);
-      } else {
-        alert(`${selectedIds.length} membros removidos com sucesso. A lista será atualizada.`);
-        setSelectedIds([]);
-        window.location.reload();
+          // 1. Delete Invites
+          if (inviteIds.length > 0) {
+            const cleanInviteIds = inviteIds.map(id => String(id).replace('invite-', ''));
+            const { error: inviteError } = await supabase
+              .from('invitations')
+              .delete()
+              .in('id', cleanInviteIds);
+
+            if (inviteError) throw inviteError;
+          }
+
+          // 2. Delete Active Members
+          if (memberIds.length > 0) {
+            const { error: memberError } = await supabase
+              .from('space_members')
+              .delete()
+              .in('user_id', memberIds);
+
+            if (memberError) throw memberError;
+          }
+
+          toast.success(`${selectedIds.length} removidos com sucesso.`);
+          setSelectedIds([]);
+          window.location.reload();
+
+        } catch (error: any) {
+          toast.error('Erro ao remover: ' + error.message);
+        } finally {
+          setLoading(false);
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        }
       }
-    }
+    });
   };
 
   return (
@@ -121,6 +170,14 @@ const GestaoMembros: React.FC<GestaoMembrosProps> = ({ users, onAddUser, onEditU
           </table>
         </div>
       </div>
+      <ConfirmationDialog
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        description={confirmConfig.description}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+        variant={confirmConfig.variant}
+      />
     </div>
   );
 };

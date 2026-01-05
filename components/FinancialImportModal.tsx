@@ -4,7 +4,8 @@ import React, { useState, useRef } from 'react';
 import { ImportIcon, UploadCloudIcon } from './icons';
 
 interface FinancialEntry {
-    id: number;
+    id: string; // Updated to match ProjectFinanceiro
+
     description: string;
     type: 'Custo' | 'Receita';
     value: number;
@@ -74,7 +75,7 @@ const FinancialImportModal: React.FC<FinancialImportModalProps> = ({ isOpen, onC
                 'Data': 'YYYY-MM-DD'
             }
         ];
-        
+
         const worksheet = XLSX.utils.json_to_sheet(templateData);
         const wscols = [{ wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
         worksheet['!cols'] = wscols;
@@ -95,10 +96,10 @@ const FinancialImportModal: React.FC<FinancialImportModalProps> = ({ isOpen, onC
 
             const mappedEntries: Partial<FinancialEntry>[] = jsonData.map((row: any) => {
                 let dateStr = row['Data'];
-                 if (typeof dateStr === 'number') {
-                     const date = new Date(Math.round((dateStr - 25569) * 86400 * 1000));
-                     dateStr = date.toISOString().split('T')[0];
-                 }
+                if (typeof dateStr === 'number') {
+                    const date = new Date(Math.round((dateStr - 25569) * 86400 * 1000));
+                    dateStr = date.toISOString().split('T')[0];
+                }
 
                 return {
                     description: row['Descrição'] || 'Sem descrição',

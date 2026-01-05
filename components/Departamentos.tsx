@@ -9,7 +9,11 @@ interface DepartamentosProps {
   deleteDepartment: (name: string) => void;
 }
 
+import { useToast } from '../context/ToastContext';
+
 const Departamentos: React.FC<DepartamentosProps> = ({ }) => {
+  const toast = useToast();
+
   const [localDepartments, setLocalDepartments] = useState<{ id: string, name: string }[]>([]);
   const [newDepartment, setNewDepartment] = useState('');
   const [loading, setLoading] = useState(true);
@@ -28,7 +32,7 @@ const Departamentos: React.FC<DepartamentosProps> = ({ }) => {
 
     if (error) {
       console.error('Error fetching departments:', error);
-      alert('Erro ao carregar departamentos: ' + error.message);
+      toast.error('Erro ao carregar departamentos: ' + error.message);
     } else if (data) {
       setLocalDepartments(data);
     }
@@ -44,12 +48,12 @@ const Departamentos: React.FC<DepartamentosProps> = ({ }) => {
     const name = newDepartment.trim();
 
     if (!name) {
-      alert('O nome do departamento não pode ser vazio.');
+      toast.error('O nome do departamento não pode ser vazio.');
       return;
     }
 
     if (localDepartments.some(d => d.name.toLowerCase() === name.toLowerCase())) {
-      alert('Este departamento já existe.');
+      toast.error('Este departamento já existe.');
       return;
     }
 
@@ -58,9 +62,9 @@ const Departamentos: React.FC<DepartamentosProps> = ({ }) => {
       .insert([{ name }]);
 
     if (error) {
-      alert('Erro ao adicionar departamento: ' + error.message);
+      toast.error('Erro ao adicionar departamento: ' + error.message);
     } else {
-      alert('Departamento adicionado com sucesso!');
+      toast.success('Departamento adicionado com sucesso!');
       setNewDepartment('');
       fetchDepartments();
     }
@@ -74,7 +78,7 @@ const Departamentos: React.FC<DepartamentosProps> = ({ }) => {
         .eq('id', id);
 
       if (error) {
-        alert('Erro ao excluir departamento: ' + error.message);
+        toast.error('Erro ao excluir departamento: ' + error.message);
       } else {
         fetchDepartments();
       }
@@ -94,7 +98,7 @@ const Departamentos: React.FC<DepartamentosProps> = ({ }) => {
   const saveEditing = async (id: string) => {
     const name = editName.trim();
     if (!name) {
-      alert("O nome não pode ser vazio.");
+      toast.error("O nome não pode ser vazio.");
       return;
     }
 
@@ -104,7 +108,7 @@ const Departamentos: React.FC<DepartamentosProps> = ({ }) => {
       .eq('id', id);
 
     if (error) {
-      alert("Erro ao atualizar departamento: " + error.message);
+      toast.error("Erro ao atualizar departamento: " + error.message);
     } else {
       setLocalDepartments(prev => prev.map(dep => dep.id === id ? { ...dep, name: name } : dep));
       setEditingId(null);
@@ -135,11 +139,11 @@ const Departamentos: React.FC<DepartamentosProps> = ({ }) => {
         .in('id', selectedIds);
 
       if (error) {
-        alert('Erro ao excluir departamentos: ' + error.message);
+        toast.error('Erro ao excluir departamentos: ' + error.message);
       } else {
         fetchDepartments();
         setSelectedIds([]);
-        alert(`${selectedIds.length} departamentos excluídos com sucesso!`);
+        toast.success(`${selectedIds.length} departamentos excluídos com sucesso!`);
       }
     }
   };

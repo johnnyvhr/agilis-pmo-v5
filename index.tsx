@@ -11,14 +11,20 @@ if (!rootElement) {
 
 import { ProjectProvider } from './context/ProjectContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { ConfirmationProvider } from './context/ConfirmationContext';
+import { ToastProvider } from './context/ToastContext';
 
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <ProjectProvider>
-      <ThemeProvider>
-        <App />
-      </ThemeProvider>
-    </ProjectProvider>
+    <ThemeProvider>
+      <ToastProvider>
+        <ProjectProvider>
+          <ConfirmationProvider>
+            <App />
+          </ConfirmationProvider>
+        </ProjectProvider>
+      </ToastProvider>
+    </ThemeProvider>
   </React.StrictMode>
 );

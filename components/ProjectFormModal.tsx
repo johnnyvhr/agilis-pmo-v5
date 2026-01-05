@@ -12,7 +12,11 @@ interface ProjectFormModalProps {
     teams: Team[];
 }
 
+import { useToast } from '../context/ToastContext';
+
 const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ onClose, onSave, onDelete, projectToEdit, departments, teams }) => {
+    const toast = useToast();
+
 
     // FIX: Added explicit return type for better type safety.
     const getInitialFormData = (): Omit<Project, 'id'> => {
@@ -93,7 +97,10 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ onClose, onSave, on
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.name) {
-            alert('O nome do projeto é obrigatório.');
+            if (!formData.name) {
+                toast.error('O nome do projeto é obrigatório.');
+                return;
+            }
             return;
         }
         const dataToSave = projectToEdit ? { ...formData, id: projectToEdit.id } : formData;

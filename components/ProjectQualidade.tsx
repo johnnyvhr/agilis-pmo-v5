@@ -15,7 +15,11 @@ interface ProjectQualidadeProps {
   setQualityChecks: React.Dispatch<React.SetStateAction<QualityCheck[]>>;
 }
 
+import { useToast } from '../context/ToastContext';
+
 const ProjectQualidade: React.FC<ProjectQualidadeProps> = ({ project, qualityChecks, onAddQualityCheck, onEditQualityCheck, setQualityChecks }) => {
+  const toast = useToast();
+
   const [showDashboard, setShowDashboard] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -60,11 +64,11 @@ const ProjectQualidade: React.FC<ProjectQualidadeProps> = ({ project, qualityChe
         .in('id', selectedIds);
 
       if (error) {
-        alert('Erro ao excluir itens: ' + error.message);
+        toast.error('Erro ao excluir itens: ' + error.message);
       } else {
         setQualityChecks(prev => prev.filter(q => !selectedIds.includes(q.id)));
         setSelectedIds([]);
-        alert(`${selectedIds.length} itens excluídos com sucesso.`);
+        toast.success(`${selectedIds.length} itens excluídos com sucesso.`);
       }
     }
   };
@@ -79,7 +83,7 @@ const ProjectQualidade: React.FC<ProjectQualidadeProps> = ({ project, qualityChe
 
   const handleExportXLSX = () => {
     if (qualityChecks.length === 0) {
-      alert("Não há dados para exportar.");
+      toast.info("Não há dados para exportar.");
       return;
     }
 
@@ -109,7 +113,7 @@ const ProjectQualidade: React.FC<ProjectQualidadeProps> = ({ project, qualityChe
     } as QualityCheck));
 
     setQualityChecks(prev => [...prev, ...newChecks]);
-    alert(`${newChecks.length} itens importados com sucesso!`);
+    toast.success(`${newChecks.length} itens importados com sucesso!`);
   };
 
   if (showDashboard) {

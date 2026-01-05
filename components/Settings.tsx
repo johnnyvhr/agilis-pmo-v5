@@ -26,7 +26,7 @@ interface SettingsProps {
   users: User[];
   onAddUser: () => void;
   onEditUser: (user: User) => void;
-  onDeleteUser: (userId: number) => void;
+  onDeleteUser: (userId: number | string) => void;
   companyName: string;
   setCompanyName: (name: string) => void;
 }
@@ -57,7 +57,11 @@ const SettingsCard: React.FC<SettingsCardProps> = ({ icon, title, description, o
   );
 };
 
+import { useToast } from '../context/ToastContext';
+
 const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, onAddUser, onEditUser, onDeleteUser, companyName, setCompanyName }) => {
+  const toast = useToast();
+
   const [currentView, setCurrentView] = useState('main');
 
   const renderMainSettings = () => (
@@ -133,7 +137,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, onAddU
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2">Criar um novo ambiente?</h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Comece do zero com um novo portfólio, equipes e configurações em um ambiente separado.</p>
             <button
-              onClick={() => alert('Redirecionando para o fluxo de criação de novo ambiente...')}
+              onClick={() => toast.info('Redirecionando para o fluxo de criação de novo ambiente...')}
               className="bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 group-hover:scale-105 transition-transform"
             >
               Criar Novo Ambiente

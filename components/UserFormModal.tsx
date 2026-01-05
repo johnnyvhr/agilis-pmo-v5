@@ -1,13 +1,13 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, ROLE_LABELS } from '../types';
 import { TrashIcon, LinkIcon } from './icons';
+import { useToast } from '../context/ToastContext';
+import { supabase } from '../lib/supabaseClient';
 
 interface UserFormModalProps {
     onClose: () => void;
-    onSave: (user: Omit<User, 'id'> & { id?: number }) => void;
-    onDelete: (userId: number) => void;
+    onSave: (user: Omit<User, 'id'> & { id?: number | string }) => void;
+    onDelete: (userId: number | string) => void;
     userToEdit: User | null;
 }
 
@@ -20,6 +20,7 @@ const ClipboardIcon = ({ className }: { className?: string }) => (
 );
 
 const UserFormModal: React.FC<UserFormModalProps> = ({ onClose, onSave, onDelete, userToEdit }) => {
+    const toast = useToast();
     // --- Edit Mode State ---
     const [formData, setFormData] = useState<Omit<User, 'id'>>({
         name: '',
@@ -30,8 +31,10 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ onClose, onSave, onDelete
 
     // --- Invite Mode State ---
     const [inviteRole, setInviteRole] = useState<UserRole>(UserRole.TeamMember);
+    const [inviteEmail, setInviteEmail] = useState('');
     const [generatedLink, setGeneratedLink] = useState<string | null>(null);
     const [isLinkCopied, setIsLinkCopied] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
 
     useEffect(() => {
         if (userToEdit) {
@@ -42,7 +45,6 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ onClose, onSave, onDelete
                 status: userToEdit.status
             });
         }
-        // No need to reset for Invite mode as states are separate
     }, [userToEdit]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -55,7 +57,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ onClose, onSave, onDelete
         if (!userToEdit) return;
 
         if (!formData.name) {
-            alert('O nome do membro é obrigatório.');
+            toast.error('O nome do membro é obrigatório.');
             return;
         }
         const dataToSave = { ...formData, id: userToEdit.id };
@@ -68,12 +70,93 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ onClose, onSave, onDelete
         }
     };
 
-    const handleGenerateLink = () => {
-        const dummyToken = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
-        // Simulating a unique invitation link
-        const baseUrl = window.location.origin;
-        setGeneratedLink(`${baseUrl}/invite/${dummyToken}?role=${encodeURIComponent(inviteRole)}`);
-        setIsLinkCopied(false);
+    const handleGenerateLink = async () => {
+        if (!inviteEmail) {
+            toast.error('Por favor, informe o email do convidado.');
+            return;
+        }
+
+        setIsGenerating(true);
+        try {
+            // 1. Get current user's space
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error("Usuário não autenticado");
+
+            const { data: members, error: memberError } = await supabase
+                .from('space_members')
+                .select('space_id')
+                .eq('user_id', user.id)
+                .limit(1);
+
+            let spaceId;
+            if (members && members.length > 0) {
+                spaceId = members[0].space_id;
+            } else {
+                // FALLBACK STRATEGY: Find a valid Space ID
+
+                // 1. Try finding a space owned by this user
+                const { data: ownedSpace } = await supabase
+                    .from('spaces')
+                    .select('id')
+                    .eq('owner_id', user.id)
+                    .limit(1)
+                    .single();
+
+                if (ownedSpace) {
+                    spaceId = ownedSpace.id;
+                } else {
+                    // 2. Try finding ANY space in the system (Last resort for single tenant feel)
+                    const { data: anySpace } = await supabase
+                        .from('spaces')
+                        .select('id')
+                        .limit(1)
+                        .single();
+
+                    if (anySpace) {
+                        spaceId = anySpace.id;
+                    } else {
+                        // 3. RPC Helper (Bypasses RLS completely)
+                        const { data: rpcSpaceId, error: rpcError } = await supabase.rpc('get_default_space_id');
+
+                        if (rpcSpaceId) {
+                            spaceId = rpcSpaceId;
+                        } else {
+                            console.error("RPC Error or No Space:", rpcError);
+                            throw new Error("Não foi possível encontrar um Espaço de Trabalho válido para associar a este convite.");
+                        }
+                    }
+                }
+            }
+
+            // 2. Generate unique token
+            const token = crypto.randomUUID();
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+
+            // 3. Insert into invitations table
+            const { error: inviteError } = await supabase
+                .from('invitations')
+                .insert({
+                    space_id: spaceId,
+                    email: inviteEmail,
+                    token: token,
+                    role: inviteRole,
+                    expires_at: expiresAt.toISOString(),
+                    created_by: user.id
+                });
+
+            if (inviteError) throw inviteError;
+
+            // 4. Set Link
+            const baseUrl = window.location.origin;
+            setGeneratedLink(`${baseUrl}/invite/${token}`);
+            setIsLinkCopied(false);
+
+        } catch (err: any) {
+            toast.error('Erro ao gerar convite: ' + err.message);
+        } finally {
+            setIsGenerating(false);
+        }
     };
 
     const handleCopyLink = () => {
@@ -96,7 +179,6 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ onClose, onSave, onDelete
                 </div>
 
                 {userToEdit ? (
-                    /* ---------------- EDIT MODE (Existing User) ---------------- */
                     <form onSubmit={handleSaveEdit} className="space-y-4">
                         <div>
                             <label htmlFor="name" className="block text-sm font-medium text-slate-700">Nome Completo *</label>
@@ -138,20 +220,31 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ onClose, onSave, onDelete
                         </div>
                     </form>
                 ) : (
-                    /* ---------------- INVITE MODE (New Link Generation) ---------------- */
                     <div className="space-y-6">
-                        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                        <div className="bg-blue-50 dark:bg-slate-800 border border-blue-200 dark:border-slate-700 rounded-md p-4">
                             <div className="flex">
                                 <div className="flex-shrink-0">
-                                    <LinkIcon className="h-5 w-5 text-blue-400" />
+                                    <LinkIcon className="h-5 w-5 text-blue-400 dark:text-blue-500" />
                                 </div>
                                 <div className="ml-3">
-                                    <h3 className="text-sm font-medium text-blue-800">Inclusão Manual Desativada</h3>
-                                    <div className="mt-2 text-sm text-blue-700">
+                                    <h3 className="text-sm font-medium text-blue-800 dark:text-slate-200">Inclusão Manual Desativada</h3>
+                                    <div className="mt-2 text-sm text-blue-700 dark:text-slate-300">
                                         <p>Para adicionar novos membros ao Space, gere um link de convite e compartilhe com eles. O acesso será concedido após a aceitação.</p>
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <div>
+                            <label htmlFor="inviteEmail" className="block text-sm font-medium text-slate-700 mb-1">Email do Convidado</label>
+                            <input
+                                type="email"
+                                id="inviteEmail"
+                                value={inviteEmail}
+                                onChange={(e) => setInviteEmail(e.target.value)}
+                                placeholder="exemplo@empresa.com"
+                                className="block w-full px-3 py-2 border border-slate-300 rounded-md bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            />
                         </div>
 
                         <div>
@@ -173,9 +266,10 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ onClose, onSave, onDelete
                             <button
                                 type="button"
                                 onClick={handleGenerateLink}
-                                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                                disabled={isGenerating}
+                                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50"
                             >
-                                Gerar Link de Convite
+                                {isGenerating ? 'Gerando...' : 'Gerar Link de Convite'}
                             </button>
                         ) : (
                             <div className="space-y-3 animate-fade-in bg-slate-50 p-4 rounded-lg border border-slate-200">
@@ -197,20 +291,10 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ onClose, onSave, onDelete
                                     </button>
                                 </div>
                                 <p className="text-xs text-slate-500 text-center mt-2">
-                                    Este link é único e expira em 7 dias. O usuário entrará como <strong>{ROLE_LABELS[inviteRole]}</strong>.
+                                    Este link é único para <strong>{inviteEmail}</strong> e expira em 7 dias.
                                 </p>
                             </div>
                         )}
-
-                        <div className="flex justify-end pt-4 border-t border-slate-100">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50 font-medium transition-colors"
-                            >
-                                Concluído
-                            </button>
-                        </div>
                     </div>
                 )}
             </div>

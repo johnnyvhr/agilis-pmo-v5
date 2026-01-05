@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Project, ProjectStatus } from '../types';
 import { PencilIcon, TrashIcon } from './icons';
 import BulkProjectEditModal from './BulkProjectEditModal';
+import { useConfirmation } from '../context/ConfirmationContext';
 
 export interface FilterState {
   status: string;
@@ -49,6 +50,8 @@ const ProjectSummaryTable: React.FC<ProjectSummaryTableProps> = ({
   filters,
   onFilterChange
 }) => {
+  const { confirm } = useConfirmation();
+
   // Selection State
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
@@ -86,9 +89,16 @@ const ProjectSummaryTable: React.FC<ProjectSummaryTableProps> = ({
     }
   };
 
-  const handleBulkDeleteClick = () => {
+  const handleBulkDeleteClick = async () => {
     if (!onBulkDelete) return;
-    if (window.confirm(`Tem certeza que deseja EXCLUIR ${selectedIds.length} projetos? Esta ação é irreversível.`)) {
+    const confirmed = await confirm({
+      title: 'Excluir Projetos',
+      description: `Tem certeza que deseja EXCLUIR ${selectedIds.length} projetos? Esta ação é irreversível.`,
+      confirmText: 'Excluir',
+      variant: 'destructive'
+    });
+
+    if (confirmed) {
       onBulkDelete(selectedIds);
       setSelectedIds([]);
     }

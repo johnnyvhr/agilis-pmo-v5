@@ -19,7 +19,11 @@ interface ProjectFinanceiroProps {
   project: Project | null;
 }
 
+import { useToast } from '../context/ToastContext';
+
 const ProjectFinanceiro: React.FC<ProjectFinanceiroProps> = ({ project }) => {
+  const toast = useToast();
+
   const [entries, setEntries] = useState<FinancialEntry[]>([]);
   const [description, setDescription] = useState('');
   const [type, setType] = useState<'Custo' | 'Receita'>('Custo');
@@ -78,7 +82,7 @@ const ProjectFinanceiro: React.FC<ProjectFinanceiroProps> = ({ project }) => {
 
     const val = parseFloat(value);
     if (isNaN(val)) {
-      alert("Valor inválido");
+      toast.error("Valor inválido");
       return;
     }
 
@@ -95,7 +99,7 @@ const ProjectFinanceiro: React.FC<ProjectFinanceiroProps> = ({ project }) => {
       .insert([payload]);
 
     if (error) {
-      alert("Erro ao adicionar lançamento: " + error.message);
+      toast.error("Erro ao adicionar lançamento: " + error.message);
     } else {
       // Reset form and refresh
       setDescription('');
@@ -114,7 +118,7 @@ const ProjectFinanceiro: React.FC<ProjectFinanceiroProps> = ({ project }) => {
         .eq('id', id);
 
       if (error) {
-        alert("Erro ao excluir: " + error.message);
+        toast.error("Erro ao excluir: " + error.message);
       } else {
         fetchFinancialRecords();
       }
@@ -123,7 +127,7 @@ const ProjectFinanceiro: React.FC<ProjectFinanceiroProps> = ({ project }) => {
 
   const handleExportXLSX = () => {
     if (entries.length === 0) {
-      alert("Não há lançamentos para exportar.");
+      toast.info("Não há lançamentos para exportar.");
       return;
     }
 
@@ -171,9 +175,9 @@ const ProjectFinanceiro: React.FC<ProjectFinanceiroProps> = ({ project }) => {
         .in('id', selectedIds);
 
       if (error) {
-        alert('Erro ao excluir lançamentos: ' + error.message);
+        toast.error('Erro ao excluir lançamentos: ' + error.message);
       } else {
-        alert(`${selectedIds.length} lançamentos excluídos com sucesso.`);
+        toast.success(`${selectedIds.length} lançamentos excluídos com sucesso.`);
         setSelectedIds([]);
         fetchFinancialRecords();
       }
@@ -195,9 +199,9 @@ const ProjectFinanceiro: React.FC<ProjectFinanceiroProps> = ({ project }) => {
       .insert(payloads);
 
     if (error) {
-      alert('Erro ao importar: ' + error.message);
+      toast.error('Erro ao importar: ' + error.message);
     } else {
-      alert(`${payloads.length} lançamentos importados com sucesso!`);
+      toast.success(`${payloads.length} lançamentos importados com sucesso!`);
       fetchFinancialRecords();
     }
   };

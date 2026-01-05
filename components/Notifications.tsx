@@ -35,7 +35,11 @@ const NotificationSettingRow: React.FC<{ title: string; description: string; cha
     </tr>
 );
 
+import { useToast } from '../settings/../context/ToastContext';
+
 const Notifications: React.FC<NotificationsProps> = ({ onClose }) => {
+    const toast = useToast();
+
     const [pauseAll, setPauseAll] = useState(false);
     const [dndEnabled, setDndEnabled] = useState(false);
     const [dndStart, setDndStart] = useState('22:00');
@@ -128,7 +132,7 @@ const Notifications: React.FC<NotificationsProps> = ({ onClose }) => {
                     <button
                         type="button"
                         className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium text-sm"
-                        onClick={() => alert('Preferências salvas!')}
+                        onClick={() => toast.success('Preferências salvas!')}
                     >
                         Salvar Preferências
                     </button>

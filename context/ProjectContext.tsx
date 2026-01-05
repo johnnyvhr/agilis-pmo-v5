@@ -47,7 +47,7 @@ interface ProjectContextType {
 
     addUser: (user: User) => void;
     updateUser: (user: User) => void;
-    deleteUser: (id: number) => void;
+    deleteUser: (id: number | string) => void;
 
     resetData: () => void;
 }
@@ -59,7 +59,10 @@ const initialProjects: Project[] = [];
 // ... other initials can be empty or default
 
 
+import { useToast } from './ToastContext';
+
 export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const toast = useToast();
     const [companyName, setLocalCompanyName] = useState('Sua Empresa');
     const [orgId, setOrgId] = useState<string | null>(null);
 
@@ -84,9 +87,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
                 console.error("Error updating company name:", error);
                 setLocalCompanyName(oldName);
                 if (error.code === '42501' || error.message.includes('polic')) {
-                    alert("Permissão negada: Apenas administradores podem alterar o nome do ambiente.");
+                    toast.error("Permissão negada: Apenas administradores podem alterar o nome do ambiente.");
                 } else {
-                    alert("Erro ao atualizar nome do ambiente: " + error.message);
+                    toast.error("Erro ao atualizar nome do ambiente: " + error.message);
                 }
             }
         } catch (err) {
@@ -119,7 +122,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
                     // Check for Inactive Status
                     if (profile.status === 'Inativo' || profile.status === 'inativo') {
                         await supabase.auth.signOut();
-                        alert("Sua conta está desativada. Entre em contato com o administrador.");
+                        toast.error("Sua conta está desativada. Entre em contato com o administrador.");
                         setCurrentUser(null);
                         return;
                     }
@@ -279,17 +282,58 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
                 const { data: teamsData } = await supabase.from('teams').select('*');
                 if (teamsData) setTeams(teamsData as any);
 
-                // Fetch Profiles/Users
-                const { data: usersData } = await supabase.from('profiles').select('*');
-                if (usersData) {
-                    setUsers(usersData.map((u: any) => ({
-                        ...u,
-                        status: u.status || 'Ativo' // Use DB status or default
-                    })) as any);
+                // Fetch Profiles/Users via Space Members to get Roles
+                const { data: membersData } = await supabase
+                    .from('space_members')
+                    .select(`
+                        role,
+                        user_id,
+                        profiles (
+                            id,
+                            name,
+                            email,
+                            avatar_url
+                        )
+                    `);
+
+                if (membersData) {
+                    const mappedUsers = membersData.map((m: any) => {
+                        const profile = m.profiles;
+                        const p = Array.isArray(profile) ? profile[0] : profile;
+
+                        if (!p) return null;
+
+                        return {
+                            id: p.id,
+                            name: p.name || 'Usuário',
+                            email: p.email || '',
+                            role: m.role || 'member',
+                            status: 'Ativo'
+                        };
+                    }).filter((u: any) => u !== null);
+
+                    // Fetch Pending Invitations
+                    const { data: invitesData } = await supabase
+                        .from('invitations')
+                        .select('*'); // RLS filters this to 'own invites' or 'admin viewable'
+
+                    let pendingUsers: any[] = [];
+                    if (invitesData) {
+                        pendingUsers = invitesData.map((inv: any) => ({
+                            id: `invite-${inv.id}`, // Temporary ID for UI
+                            name: '(Pendente)', // No name in invite, use placeholder or match email
+                            email: inv.email,
+                            role: inv.role,
+                            status: 'Pendente'
+                        }));
+                    }
+
+                    setUsers([...(mappedUsers as any), ...pendingUsers]);
                 }
 
             } catch (error) {
                 console.error("Error fetching data:", error);
+                toast.error("Erro ao carregar dados: " + (error as any).message);
             }
         };
 
@@ -333,7 +377,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             setSelectedProject({ ...project, id: newProject.id });
         } else if (error) {
             console.error("Error adding project:", error);
-            alert("Erro ao adicionar projeto: " + error.message);
+            toast.error("Erro ao adicionar projeto: " + error.message);
         }
     };
 
@@ -551,39 +595,37 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         await supabase.from('profiles').update({ name: user.name, role: user.role }).eq('id', user.id);
         setUsers(users.map(u => u.id === user.id ? user : u));
     };
-    const deleteUser = async (id: number) => {
+    const deleteUser = async (id: number | string) => {
         try {
-            // Delete from profiles table (Hard delete for now, effectively removing member)
-            // We use 'id' as any because at runtime it is likely a UUID string
-            const { data, error } = await supabase.from('profiles').delete().eq('id', id).select();
+            // Delete from space_members table (Removes access but keeps profile history)
+            // We delete by user_id
+            const { data, error } = await supabase.from('space_members').delete().eq('user_id', id).select();
 
             if (error) {
                 console.error("Error deleting user:", error);
-                if (error.message?.includes('foreign key constraint') || error.details?.includes('foreign key constraint')) {
-                    alert("Não é possível excluir este usuário pois ele está vinculado a projetos ou outros registros. Remova as vinculações antes de tentar novamente.");
-                } else {
-                    alert(`Erro ao excluir usuário: ${error.message || 'Erro desconhecido'}`);
-                }
+                toast.error(`Erro ao remover membro: ${error.message}`);
                 return;
             }
 
             if (!data || data.length === 0) {
-                alert("Falha ao excluir. O usuário pode não existir ou você não tem permissão (RLS) para realizar esta ação.");
+                console.warn("No space_members record found to delete, or RLS hid it.");
+                toast.error("Você não tem permissão para remover este membro ou ele já foi removido.");
                 return;
             }
 
-            // Update local state only on success
+            // Update local state
             setUsers(prevUsers => prevUsers.filter(u => u.id !== id));
-
-            // Also remove from teams - assuming local consistency needs maintenance
+            toast.success("Membro removido com sucesso.");
             setTeams(prevTeams => prevTeams.map(team => ({
                 ...team,
                 members: team.members.filter(m => m.userId !== id)
             })));
 
+            toast.success("Membro removido com sucesso.");
+
         } catch (err) {
             console.error("Unexpected error deleting user:", err);
-            alert("Erro inesperado ao excluir usuário.");
+            toast.error("Erro inesperado ao excluir usuário.");
         }
     };
 

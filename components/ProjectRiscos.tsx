@@ -15,7 +15,11 @@ interface ProjectRiscosProps {
   setRisks: React.Dispatch<React.SetStateAction<Risk[]>>;
 }
 
+import { useToast } from '../context/ToastContext';
+
 const ProjectRiscos: React.FC<ProjectRiscosProps> = ({ project, risks, onAddRisk, onEditRisk, setRisks }) => {
+  const toast = useToast();
+
   const [showDashboard, setShowDashboard] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -55,11 +59,11 @@ const ProjectRiscos: React.FC<ProjectRiscosProps> = ({ project, risks, onAddRisk
         .in('id', selectedIds);
 
       if (error) {
-        alert('Erro ao excluir riscos: ' + error.message);
+        toast.error('Erro ao excluir riscos: ' + error.message);
       } else {
         setRisks(prev => prev.filter(r => !selectedIds.includes(r.id)));
         setSelectedIds([]);
-        alert(`${selectedIds.length} riscos excluídos com sucesso.`);
+        toast.success(`${selectedIds.length} riscos excluídos com sucesso.`);
       }
     }
   };
@@ -91,7 +95,7 @@ const ProjectRiscos: React.FC<ProjectRiscosProps> = ({ project, risks, onAddRisk
 
   const handleExportXLSX = () => {
     if (risks.length === 0) {
-      alert("Não há riscos para exportar.");
+      toast.info("Não há riscos para exportar.");
       return;
     }
 
@@ -123,7 +127,7 @@ const ProjectRiscos: React.FC<ProjectRiscosProps> = ({ project, risks, onAddRisk
     } as Risk));
 
     setRisks(prev => [...prev, ...newRisks]);
-    alert(`${newRisks.length} riscos importados com sucesso!`);
+    toast.success(`${newRisks.length} riscos importados com sucesso!`);
   };
 
   if (showDashboard) {

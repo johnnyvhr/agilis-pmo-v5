@@ -11,10 +11,14 @@ interface GestaoEquipesProps {
   onEditTeam: (team: Team) => void;
 }
 
-const GestaoEquipes: React.FC<GestaoEquipesProps> = ({ teams = [], users, onAddTeam, onEditTeam }) => {
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+import { useToast } from '../context/ToastContext';
 
-  const findUserById = (id: number) => users?.find(u => u.id === id);
+const GestaoEquipes: React.FC<GestaoEquipesProps> = ({ teams = [], users, onAddTeam, onEditTeam }) => {
+  const toast = useToast();
+
+  const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
+
+  const findUserById = (id: string | number) => users?.find(u => u.id === id);
 
   const getStatusColor = (status: TeamStatus) => {
     switch (status) {
@@ -31,7 +35,7 @@ const GestaoEquipes: React.FC<GestaoEquipesProps> = ({ teams = [], users, onAddT
     }
   };
 
-  const handleSelectRow = (id: number) => {
+  const handleSelectRow = (id: string | number) => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
     );
@@ -47,9 +51,9 @@ const GestaoEquipes: React.FC<GestaoEquipesProps> = ({ teams = [], users, onAddT
         .in('id', selectedIds);
 
       if (error) {
-        alert('Erro ao excluir equipes: ' + error.message);
+        toast.error('Erro ao excluir equipes: ' + error.message);
       } else {
-        alert(`${selectedIds.length} equipes excluídas com sucesso. A lista será atualizada.`);
+        toast.success(`${selectedIds.length} equipes excluídas com sucesso. A lista será atualizada.`);
         setSelectedIds([]);
         window.location.reload(); // Refresh to update props from parent
       }

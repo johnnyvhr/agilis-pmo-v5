@@ -10,7 +10,11 @@ interface TeamFormModalProps {
     users: User[];
 }
 
+import { useToast } from '../context/ToastContext';
+
 const TeamFormModal: React.FC<TeamFormModalProps> = ({ onClose, onSave, onDelete, teamToEdit, users }) => {
+    const toast = useToast();
+
 
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -54,7 +58,7 @@ const TeamFormModal: React.FC<TeamFormModalProps> = ({ onClose, onSave, onDelete
         e.preventDefault();
         // Check for leaderId being 0 (default) or empty
         if (!name || !leaderId || leaderId === 0) {
-            alert('Nome da equipe e Líder são obrigatórios.');
+            toast.error('Nome da equipe e Líder são obrigatórios.');
             return;
         }
 
