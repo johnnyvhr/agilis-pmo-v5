@@ -6,6 +6,7 @@ import GanttChart, { ViewMode } from './GanttChart';
 import { ImportIcon } from './icons';
 import ProjectImportModal from './ProjectImportModal';
 import { supabase } from '../lib/supabaseClient';
+import ErrorBoundary from './ErrorBoundary';
 
 interface DashboardProps {
   projects: Project[];
@@ -321,12 +322,14 @@ export default function Dashboard({ projects, onEditProject }: DashboardProps) {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <GanttChart
-            projects={ganttProjects}
-            viewMode={viewMode}
-            startDate={overallStartDate}
-            endDate={overallEndDate}
-          />
+          <ErrorBoundary>
+            <GanttChart
+              projects={ganttProjects}
+              viewMode={viewMode}
+              startDate={overallStartDate}
+              endDate={overallEndDate}
+            />
+          </ErrorBoundary>
         </div>
       </div>
 

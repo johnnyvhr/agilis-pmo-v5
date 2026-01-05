@@ -27,54 +27,76 @@ export function ThemeProvider({
     defaultTheme = 'system',
     storageKey = 'vite-ui-theme',
 }: ThemeProviderProps) {
+    // Initialize state from storage directly (Client-side SPA safe)
     const [theme, setThemeState] = useState<Theme>(
         () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
     );
-
     const [isDark, setIsDark] = useState(false);
 
+    // 1. 'Nuclear' Cleanup (First Run Only)
     useEffect(() => {
-        const root = window.document.documentElement;
-
-        root.classList.remove('light', 'dark');
-
-        if (theme === 'system') {
-            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
-                ? 'dark'
-                : 'light';
-
-            root.classList.add(systemTheme);
-            setIsDark(systemTheme === 'dark');
-            return;
+        const saved = localStorage.getItem(storageKey);
+        // If the saved theme is not strictly 'light', 'dark', 'system', force reset it.
+        if (saved && !['light', 'dark', 'system'].includes(saved)) {
+            console.warn('Corrupt theme state detected. Resetting to default.');
+            localStorage.removeItem(storageKey);
+            setThemeState(defaultTheme);
         }
+    }, [storageKey, defaultTheme]);
 
-        root.classList.add(theme);
-        setIsDark(theme === 'dark');
-    }, [theme]);
-
-    // Listener for system changes
+    // Initial Apply & System Listener
     useEffect(() => {
-        if (theme !== 'system') return;
+        const applyTheme = () => {
+            const root = window.document.documentElement;
+            root.classList.remove('light', 'dark');
+
+            if (theme === 'system') {
+                const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark'
+                    : 'light';
+                root.classList.add(systemTheme);
+                setIsDark(systemTheme === 'dark');
+            } else {
+                root.classList.add(theme);
+                setIsDark(theme === 'dark');
+            }
+        };
+
+        applyTheme();
 
         const media = window.matchMedia('(prefers-color-scheme: dark)');
         const listener = () => {
-            const root = window.document.documentElement;
-            const systemTheme = media.matches ? 'dark' : 'light';
-            root.classList.remove('light', 'dark');
-            root.classList.add(systemTheme);
-            setIsDark(media.matches);
-        }
-
+            if (theme === 'system') {
+                applyTheme();
+            }
+        };
         media.addEventListener('change', listener);
         return () => media.removeEventListener('change', listener);
-    }, [theme])
+    }, [theme]);
+
+    const setTheme = (mode: Theme) => {
+        // 1. Update React State
+        setThemeState(mode);
+        // 2. Update LocalStorage
+        localStorage.setItem(storageKey, mode);
+
+        // 3. Update DOM Immediately (Synchronous)
+        const root = window.document.documentElement;
+        root.classList.remove('light', 'dark');
+
+        if (mode === 'system') {
+            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            root.classList.add(systemDark ? 'dark' : 'light');
+            setIsDark(systemDark); // Keep helper in sync
+        } else {
+            root.classList.add(mode);
+            setIsDark(mode === 'dark'); // Keep helper in sync
+        }
+    };
 
     const value = {
         theme,
-        setTheme: (theme: Theme) => {
-            localStorage.setItem(storageKey, theme);
-            setThemeState(theme);
-        },
+        setTheme,
         isDark
     };
 

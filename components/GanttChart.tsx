@@ -16,7 +16,8 @@ interface GanttChartProps {
     viewMode?: ViewMode;
 }
 
-const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, viewMode = 'month' }) => {
+const GanttChart: React.FC<GanttChartProps> = React.memo(({ projects = [], startDate, endDate, viewMode = 'month' }) => {
+    if (!projects) return null; // Defensive Check
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [sidebarWidth] = useState<number>(300); // Fixed 300px as requested
 
@@ -52,7 +53,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
         end.setDate(0);
         end.setHours(0, 0, 0, 0);
 
-        console.log('CALCULATED START DATE:', start);
+        // console.log('CALCULATED START DATE:', start); // Reduced log spam
 
         return { chartStart: start, chartEnd: end };
     }, [startDate, endDate]);
@@ -215,7 +216,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
         const container = scrollContainerRef.current || document.querySelector('div[style*="overflow-x"]');
 
         if (container) {
-            console.log('Forcing scroll to 0');
+            // console.log('Forcing scroll to 0');
             container.scrollLeft = 0;
         }
     }, [projects]);
@@ -340,7 +341,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
                                             <div className="hidden group-hover:block absolute bottom-full left-0 mb-2 bg-slate-800 text-white text-xs rounded py-1.5 px-3 z-30 shadow-xl w-max">
                                                 <div className="font-bold mb-1">{project.name}</div>
                                                 <div className="text-slate-300">
-                                                    {project.startDate.toLocaleDateString('pt-BR')} - {project.endDate.toLocaleDateString('pt-BR')}
+                                                    {new Date(project.startDate).toLocaleDateString('pt-BR')} - {new Date(project.endDate).toLocaleDateString('pt-BR')}
                                                 </div>
                                                 {project.status && (
                                                     <div className="mt-1 inline-block px-1.5 py-0.5 rounded bg-white/20 text-[10px] uppercase tracking-wide">
@@ -358,6 +359,6 @@ const GanttChart: React.FC<GanttChartProps> = ({ projects, startDate, endDate, v
             </div>
         </div>
     );
-};
+});
 
 export default GanttChart;

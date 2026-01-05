@@ -1,0 +1,150 @@
+/* --- SAFE GLOBAL DARK MODE OVERRIDES --- */
+/* Applies only when .dark class is present on HTML tag */
+.dark body {
+    background-color: #0f172a !important;
+    /* Dark Slate Background */
+    color: #f1f5f9 !important;
+    /* Light Text */
+}
+
+/* Target all white containers safely */
+.dark .bg-white,
+.dark .bg-gray-50,
+.dark .card,
+.dark .paper {
+    background-color: #1e293b !important;
+    /* Darker Slate for cards */
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
+}
+
+/* Target Inputs without clearing their values */
+.dark input,
+.dark select,
+.dark textarea,
+.dark .form-control {
+    background-color: #0f172a !important;
+    border-color: #475569 !important;
+    color: #ffffff !important;
+}
+
+/* Fix Tables specifically */
+.dark table,
+.dark thead,
+.dark tbody,
+.dark tr,
+.dark td,
+.dark th {
+    background-color: transparent !important;
+    color: inherit !important;
+    border-color: #334155 !important;
+}
+
+/* --- PHASE 2: CONTRAST & COVERAGE FIXES --- */
+
+/* 1. Force ALL generic text to be light in dark mode */
+.dark body,
+.dark main,
+.dark div,
+.dark span,
+.dark p,
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6 {
+    color: #e2e8f0 !important;
+    /* Light Slate */
+}
+
+/* 2. Fix Specific Tailwind Text Classes (The invisible text culprit) */
+/* Overrides text-gray-500, 600, 700, 800, 900 which are used heavily */
+.dark .text-gray-400,
+.dark .text-gray-500,
+.dark .text-gray-600,
+.dark .text-gray-700,
+.dark .text-gray-800,
+.dark .text-gray-900,
+.dark .text-black,
+.dark .text-slate-500,
+.dark .text-slate-600,
+.dark .text-slate-700,
+.dark .text-slate-800,
+.dark .text-slate-900 {
+    color: #cbd5e1 !important;
+    /* Make them readable light grey */
+}
+
+/* 3. Deep Container Targeting (Fixing white gaps) */
+.dark main,
+.dark section,
+.dark article,
+.dark aside {
+    background-color: #0f172a !important;
+    /* Match body background */
+}
+
+/* 4. Form & Input Fixes (Critical for "Nome do departamento") */
+.dark input,
+.dark select,
+.dark textarea {
+    background-color: #1e293b !important;
+    /* Darker than body */
+    border-color: #475569 !important;
+    color: #ffffff !important;
+    /* Bright white text for inputs */
+}
+
+/* Fix Placeholder text visibility */
+.dark ::placeholder {
+    color: #94a3b8 !important;
+    /* Visible grey */
+    opacity: 1 !important;
+}
+
+/* 5. Table & List Item Cleanups */
+.dark tr:nth-child(even),
+.dark tr:nth-child(odd) {
+    background-color: transparent !important;
+    /* Stop zebra striping if white */
+}
+
+.dark td,
+.dark th {
+    border-bottom-color: #334155 !important;
+}
+
+/* --- PHASE 3: SEALING THE GAPS --- */
+
+/* 1. Target the Root Application Containers */
+html.dark,
+.dark body,
+.dark #root,
+.dark #__next,
+.dark .min-h-screen {
+    background-color: #0f172a !important;
+    /* Force Deep Dark Blue everywhere */
+}
+
+/* 2. Target ALL Light Gray Variants (The hidden culprits) */
+/* Many dashboards use gray-50 or gray-100 for background */
+.dark .bg-gray-50,
+.dark .bg-gray-100,
+.dark .bg-gray-200,
+.dark .bg-slate-50,
+.dark .bg-slate-100,
+.dark .bg-neutral-50,
+.dark .bg-neutral-100 {
+    background-color: #0f172a !important;
+    /* Match Body Background */
+    border-color: #334155 !important;
+}
+
+/* 3. Ensure Modals/Dialogs are Dark */
+.dark [role="dialog"],
+.dark .modal-content {
+    background-color: #1e293b !important;
+    /* Card Color */
+    color: #e2e8f0 !important;
+}

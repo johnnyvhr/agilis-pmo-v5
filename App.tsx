@@ -27,6 +27,8 @@ import { useProjectContext } from './context/ProjectContext';
 import { Project, Task, Risk, QualityCheck, User, Team } from './types';
 import LoginPage from './components/LoginPage';
 import InvitePage from './components/InvitePage';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
 
 // Login component moved to ./components/LoginPage.tsx
 
@@ -296,6 +298,8 @@ const App: React.FC = () => {
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={!currentUser ? <LoginPage onLogin={() => { }} /> : <Navigate to="/" />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/invite/:id" element={<InvitePage />} />
 
         {/* Protected Routes */}

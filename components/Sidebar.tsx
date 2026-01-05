@@ -210,4 +210,4 @@ const Sidebar: React.FC<SidebarProps> = ({ companyName, projects, selectedProjec
   );
 };
 
-export default Sidebar;
+export default React.memo(Sidebar);

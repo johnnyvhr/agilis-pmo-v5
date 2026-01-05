@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 
 interface LoginProps {
@@ -108,6 +109,11 @@ const LoginPage: React.FC<LoginProps> = ({ onLogin }) => {
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                             />
+                        </div>
+                        <div className="flex justify-end mt-1">
+                            <Link to="/forgot-password" className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+                                Esqueceu sua senha?
+                            </Link>
                         </div>
                     </div>
 
